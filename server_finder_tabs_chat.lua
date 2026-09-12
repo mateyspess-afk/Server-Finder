@@ -338,6 +338,40 @@ local function applyResponsiveScale()
     WindowScale.Scale = currentScale
 end
 
+local function clampWindowToViewport()
+    if destroyed or not Window.Parent then
+        return
+    end
+
+    local viewport = getViewport()
+    local absoluteSize = Window.AbsoluteSize
+    local windowWidth = math.max(1, absoluteSize.X)
+    local windowHeight = math.max(1, absoluteSize.Y)
+    local margin = 6
+    local position = Window.Position
+
+    local positionX = viewport.X * position.X.Scale + position.X.Offset
+    local positionY = viewport.Y * position.Y.Scale + position.Y.Offset
+    local minimumX = windowWidth / 2 + margin
+    local maximumX = viewport.X - windowWidth / 2 - margin
+    local minimumY = windowHeight / 2 + margin
+    local maximumY = viewport.Y - windowHeight / 2 - margin
+
+    local clampedX = minimumX <= maximumX
+        and clamp(positionX, minimumX, maximumX)
+        or viewport.X / 2
+    local clampedY = minimumY <= maximumY
+        and clamp(positionY, minimumY, maximumY)
+        or viewport.Y / 2
+
+    Window.Position = UDim2.new(
+        position.X.Scale,
+        clampedX - viewport.X * position.X.Scale,
+        position.Y.Scale,
+        clampedY - viewport.Y * position.Y.Scale
+    )
+end
+
 local Header = create("Frame", {
     Size = UDim2.new(1, 0, 0, 48),
     BackgroundColor3 = Color3.fromRGB(29, 32, 44),
@@ -1156,6 +1190,7 @@ loadingConnection = RunService.RenderStepped:Connect(function(delta)
         return
     end
     applyResponsiveScale()
+    clampWindowToViewport()
     if Loading.Visible and not loadingFinishing then
         loadingProgress = math.min(1, loadingProgress + delta * 0.18)
         LoadingBarFill.Size = UDim2.new(loadingProgress, 0, 1, 0)
@@ -1373,6 +1408,7 @@ UserInputService.InputChanged:Connect(function(input)
             startPosition.Y.Scale,
             startPosition.Y.Offset + delta.Y
         )
+        clampWindowToViewport()
     end
 
     if resizing and isPointerMove then
@@ -1382,6 +1418,7 @@ UserInputService.InputChanged:Connect(function(input)
         local scaleChange = math.max(horizontalChange, verticalChange)
         manualScale = clamp(resizeStartScale + scaleChange, MIN_SCALE, MAX_USER_SCALE)
         applyResponsiveScale()
+        clampWindowToViewport()
     end
 end)
 
@@ -1394,6 +1431,8 @@ Minimize.MouseButton1Click:Connect(function()
         and UDim2.new(0, 720, 0, 48)
         or UDim2.new(0, 720, 0, 460)
     Minimize.Text = minimized and "+" or "—"
+    applyResponsiveScale()
+    clampWindowToViewport()
 end)
 
 Close.MouseButton1Click:Connect(function()
