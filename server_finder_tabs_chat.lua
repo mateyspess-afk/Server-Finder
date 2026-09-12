@@ -29,6 +29,7 @@ local BASE_WIDTH = 720
 local BASE_HEIGHT = 460
 local MIN_SCALE = 0.55
 local MAX_SCALE = 1
+local MAX_USER_SCALE = 1.35
 
 local Config = {
     botName = "NOVA",
@@ -42,6 +43,7 @@ local searching = false
 local teleportFailed = false
 local destroyed = false
 local currentScale = 1
+local manualScale = 1
 
 local function create(className, properties, parent)
     local object = Instance.new(className)
@@ -329,7 +331,10 @@ local function applyResponsiveScale()
     local viewport = getViewport()
     local widthScale = (viewport.X - 24) / BASE_WIDTH
     local heightScale = (viewport.Y - 24) / BASE_HEIGHT
-    currentScale = clamp(math.min(widthScale, heightScale), MIN_SCALE, MAX_SCALE)
+    local fitScale = math.min(widthScale, heightScale)
+    local responsiveScale = clamp(fitScale, MIN_SCALE, MAX_SCALE)
+    local maximumAllowed = math.max(MIN_SCALE, math.min(MAX_USER_SCALE, fitScale))
+    currentScale = clamp(responsiveScale * manualScale, MIN_SCALE, maximumAllowed)
     WindowScale.Scale = currentScale
 end
 
@@ -412,6 +417,23 @@ local Main = create("Frame", {
     Position = UDim2.fromOffset(152, 56),
     BackgroundTransparency = 1,
 }, Window)
+
+local ResizeGrip = create("TextButton", {
+    Size = UDim2.fromOffset(22, 22),
+    Position = UDim2.new(1, -7, 1, -7),
+    AnchorPoint = Vector2.new(1, 1),
+    BackgroundColor3 = Color3.fromRGB(42, 49, 67),
+    BackgroundTransparency = 0.08,
+    BorderSizePixel = 0,
+    Text = "◢",
+    TextColor3 = Color3.fromRGB(90, 210, 230),
+    TextSize = 14,
+    Font = Enum.Font.SourceSansBold,
+    AutoButtonColor = false,
+    ZIndex = 30,
+}, Window)
+corner(ResizeGrip, 6)
+stroke(ResizeGrip, Color3.fromRGB(90, 210, 230), 1, 0.25)
 
 local Pages = {}
 local TabButtons = {}
@@ -1308,6 +1330,9 @@ end)
 local dragging = false
 local dragStart
 local startPosition
+local resizing = false
+local resizeStart
+local resizeStartScale
 
 Header.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1
@@ -1323,11 +1348,24 @@ Header.InputBegan:Connect(function(input)
     end
 end)
 
+ResizeGrip.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+        resizing = true
+        resizeStart = input.Position
+        resizeStartScale = manualScale
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                resizing = false
+            end
+        end)
+    end
+end)
+
 UserInputService.InputChanged:Connect(function(input)
-    if dragging and (
-        input.UserInputType == Enum.UserInputType.MouseMovement
+    local isPointerMove = input.UserInputType == Enum.UserInputType.MouseMovement
         or input.UserInputType == Enum.UserInputType.Touch
-    ) then
+    if dragging and isPointerMove then
         local delta = input.Position - dragStart
         Window.Position = UDim2.new(
             startPosition.X.Scale,
@@ -1335,6 +1373,15 @@ UserInputService.InputChanged:Connect(function(input)
             startPosition.Y.Scale,
             startPosition.Y.Offset + delta.Y
         )
+    end
+
+    if resizing and isPointerMove then
+        local delta = input.Position - resizeStart
+        local horizontalChange = delta.X / BASE_WIDTH
+        local verticalChange = delta.Y / BASE_HEIGHT
+        local scaleChange = math.max(horizontalChange, verticalChange)
+        manualScale = clamp(resizeStartScale + scaleChange, MIN_SCALE, MAX_USER_SCALE)
+        applyResponsiveScale()
     end
 end)
 
