@@ -1084,10 +1084,31 @@ end)
 
 local loadingProgress = 0.12
 local loadingMessage = "Ajustando a interface à sua tela..."
+local loadingFinishing = false
 
-local function hideLoading()
+local function hideLoading(instant)
     if Loading and Loading.Parent then
+        if instant then
+            loadingFinishing = false
+            Loading.Visible = false
+            return
+        end
+
+        if not Loading.Visible or loadingFinishing then
+            return
+        end
+
+        loadingFinishing = true
+        loadingProgress = 1
+        LoadingBarFill.Size = UDim2.new(1, 0, 1, 0)
+        LoadingHint.Text = "Carregamento concluído."
+        task.wait(0.18)
+
+        if not Loading.Parent then
+            return
+        end
         Loading.Visible = false
+        loadingFinishing = false
     end
 end
 
@@ -1096,12 +1117,15 @@ local function showLoading(text)
     LoadingDetail.Text = loadingMessage
     LoadingTitle.Text = "Aguarde um momento..."
     LoadingHint.Text = "Você pode continuar e fechar esta tela quando quiser."
-    loadingProgress = math.max(loadingProgress, 0.48)
+    loadingFinishing = false
+    loadingProgress = 0.08
     LoadingBarFill.Size = UDim2.new(loadingProgress, 0, 1, 0)
     Loading.Visible = true
 end
 
-LoadingContinue.MouseButton1Click:Connect(hideLoading)
+LoadingContinue.MouseButton1Click:Connect(function()
+    hideLoading(true)
+end)
 
 local loadingConnection
 loadingConnection = RunService.RenderStepped:Connect(function(delta)
@@ -1110,8 +1134,8 @@ loadingConnection = RunService.RenderStepped:Connect(function(delta)
         return
     end
     applyResponsiveScale()
-    if Loading.Visible then
-        loadingProgress = math.min(0.94, loadingProgress + delta * 0.10)
+    if Loading.Visible and not loadingFinishing then
+        loadingProgress = math.min(1, loadingProgress + delta * 0.18)
         LoadingBarFill.Size = UDim2.new(loadingProgress, 0, 1, 0)
         LoadingAvatar.Rotation = (LoadingAvatar.Rotation + delta * 18) % 360
         LoadingTitle.Text = "Preparando seu painel" .. string.rep(".", math.floor(os.clock() * 2) % 4)
@@ -1319,12 +1343,10 @@ Minimize.MouseButton1Click:Connect(function()
     minimized = not minimized
     Sidebar.Visible = not minimized
     Main.Visible = not minimized
-    Loading.Visible = false
     Window.Size = minimized
-        and UDim2.fromOffset(BASE_WIDTH, 48)
-        or UDim2.fromOffset(BASE_WIDTH, BASE_HEIGHT)
+        and UDim2.new(0, 720, 0, 48)
+        or UDim2.new(0, 720, 0, 460)
     Minimize.Text = minimized and "+" or "—"
-    applyResponsiveScale()
 end)
 
 Close.MouseButton1Click:Connect(function()
