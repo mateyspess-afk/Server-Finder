@@ -1,22 +1,34 @@
 --[[
-    SERVER FINDER - TABS + CHAT
-    Interface com abas laterais, janela arrastável, loading e chatbot local.
+    SERVER FINDER - RESPONSIVE EDITION
+
+    Melhorias desta versão:
+    - Escala automática baseada no tamanho real da tela.
+    - Layout centrado, arrastável, minimizável e compatível com toque.
+    - Loading renovado com progresso, animação e botão "entrar agora".
+    - Aba Admin criada somente para o usuário mateus_15600.
+    - Mantém busca de servidores, busca de usuário verificado e chatbot local.
 
     Observação:
-    O chatbot abaixo funciona localmente, sem API ou chave externa. Ele entende
-    comandos e mantém pequenas preferências durante a sessão. Para respostas
-    realmente geradas por um modelo de IA seria necessário conectar um serviço
-    externo compatível com o executor.
+    A autorização do painel Admin é local, porque este é um script de cliente.
+    Ela controla a interface, mas não substitui uma validação no servidor.
 ]]
 
-local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
 local Player = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local PLACE_ID = 4924922222
+local ADMIN_USERNAME = "mateus_15600"
+local IS_ADMIN = string.lower(Player.Name) == string.lower(ADMIN_USERNAME)
+
+local BASE_WIDTH = 720
+local BASE_HEIGHT = 460
+local MIN_SCALE = 0.55
+local MAX_SCALE = 1
 
 local Config = {
     botName = "NOVA",
@@ -29,6 +41,7 @@ local blacklist = {}
 local searching = false
 local teleportFailed = false
 local destroyed = false
+local currentScale = 1
 
 local function create(className, properties, parent)
     local object = Instance.new(className)
@@ -41,6 +54,18 @@ end
 
 local function corner(object, radius)
     create("UICorner", {CornerRadius = UDim.new(0, radius)}, object)
+end
+
+local function stroke(object, color, thickness, transparency)
+    return create("UIStroke", {
+        Color = color,
+        Thickness = thickness or 1,
+        Transparency = transparency or 0,
+    }, object)
+end
+
+local function clamp(value, minimum, maximum)
+    return math.max(minimum, math.min(maximum, value))
 end
 
 local function setStatus(label, text, color)
@@ -58,6 +83,22 @@ local function urlEncode(value)
     end)
 end
 
+local function getRequester()
+    if type(request) == "function" then
+        return request
+    end
+    if type(syn) == "table" and type(syn.request) == "function" then
+        return syn.request
+    end
+    if type(http) == "table" and type(http.request) == "function" then
+        return http.request
+    end
+    if type(http_request) == "function" then
+        return http_request
+    end
+    return nil
+end
+
 local function httpGet(url)
     if type(game.HttpGet) == "function" then
         local ok, result = pcall(function()
@@ -68,19 +109,9 @@ local function httpGet(url)
         end
     end
 
-    local requester
-    if type(request) == "function" then
-        requester = request
-    elseif type(syn) == "table" and type(syn.request) == "function" then
-        requester = syn.request
-    elseif type(http) == "table" and type(http.request) == "function" then
-        requester = http.request
-    elseif type(http_request) == "function" then
-        requester = http_request
-    end
-
+    local requester = getRequester()
     if not requester then
-        error("O executor nao possui uma funcao HTTP.")
+        error("O executor não possui uma função HTTP.")
     end
 
     local response = requester({
@@ -91,34 +122,20 @@ local function httpGet(url)
     if type(response) == "string" then
         return response
     end
-
     if type(response) == "table" then
         local status = tonumber(response.StatusCode or response.Status) or 200
-        local body = response.Body or response.body
         if status >= 400 then
             error("Erro HTTP " .. tostring(status))
         end
-        return body
+        return response.Body or response.body
     end
-
-    error("Resposta HTTP invalida.")
+    error("Resposta HTTP inválida.")
 end
 
 local function httpRequest(url, method, body)
-    local requester
-
-    if type(request) == "function" then
-        requester = request
-    elseif type(syn) == "table" and type(syn.request) == "function" then
-        requester = syn.request
-    elseif type(http) == "table" and type(http.request) == "function" then
-        requester = http.request
-    elseif type(http_request) == "function" then
-        requester = http_request
-    end
-
+    local requester = getRequester()
     if not requester then
-        error("Este executor nao possui request para POST.")
+        error("Este executor não possui request para POST.")
     end
 
     local response = requester({
@@ -133,24 +150,18 @@ local function httpRequest(url, method, body)
     if type(response) == "string" then
         return response
     end
-
     if type(response) == "table" then
         local status = tonumber(response.StatusCode or response.Status) or 200
-        local responseBody = response.Body or response.body
-
         if status >= 400 then
             error("Erro HTTP " .. tostring(status))
         end
-
-        return responseBody
+        return response.Body or response.body
     end
-
-    error("Resposta HTTP invalida.")
+    error("Resposta HTTP inválida.")
 end
 
 local function getServers(cursor)
-    local url =
-        "https://games.roblox.com/v1/games/"
+    local url = "https://games.roblox.com/v1/games/"
         .. PLACE_ID
         .. "/servers/Public?sortOrder=Desc&limit=100"
 
@@ -162,7 +173,6 @@ local function getServers(cursor)
         local ok, body = pcall(function()
             return httpGet(url)
         end)
-
         if ok and body then
             local decoded, data = pcall(function()
                 return HttpService:JSONDecode(body)
@@ -178,18 +188,15 @@ local function getServers(cursor)
 end
 
 local function isAvailable(server)
-    if type(server) ~= "table" then
+    if type(server) ~= "table"
+        or type(server.id) ~= "string"
+        or server.id == game.JobId
+        or type(server.playing) ~= "number"
+        or type(server.maxPlayers) ~= "number"
+        or server.playing >= server.maxPlayers then
         return false
     end
-    if type(server.id) ~= "string" or server.id == game.JobId then
-        return false
-    end
-    if type(server.playing) ~= "number" or type(server.maxPlayers) ~= "number" then
-        return false
-    end
-    if server.playing >= server.maxPlayers then
-        return false
-    end
+
     if blacklist[server.id] then
         if os.time() >= blacklist[server.id] then
             blacklist[server.id] = nil
@@ -263,7 +270,7 @@ local function chooseServer(mode)
     return selected or servers[1]
 end
 
--- GUI
+-- Localização da GUI.
 local parent
 if type(gethui) == "function" then
     local ok, result = pcall(gethui)
@@ -273,13 +280,13 @@ if type(gethui) == "function" then
 end
 parent = parent or CoreGui
 
-local old = parent:FindFirstChild("ServerFinderTabsChat")
+local old = parent:FindFirstChild("ServerFinderResponsive")
 if old then
     old:Destroy()
 end
 
 local Gui = create("ScreenGui", {
-    Name = "ServerFinderTabsChat",
+    Name = "ServerFinderResponsive",
     ResetOnSpawn = false,
     IgnoreGuiInset = true,
     ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
@@ -288,18 +295,43 @@ local Gui = create("ScreenGui", {
 local guiAttached = pcall(function()
     Gui.Parent = parent
 end)
-
 if not guiAttached or not Gui.Parent then
     Gui.Parent = Player:WaitForChild("PlayerGui")
 end
 
 local Window = create("Frame", {
-    Size = UDim2.new(0, 720, 0, 460),
-    Position = UDim2.new(0.5, -360, 0.5, -230),
+    Size = UDim2.fromOffset(BASE_WIDTH, BASE_HEIGHT),
+    Position = UDim2.fromScale(0.5, 0.5),
+    AnchorPoint = Vector2.new(0.5, 0.5),
     BackgroundColor3 = Color3.fromRGB(18, 20, 28),
     BorderSizePixel = 0,
 }, Gui)
 corner(Window, 14)
+stroke(Window, Color3.fromRGB(70, 82, 110), 1, 0.45)
+
+local WindowScale = create("UIScale", {
+    Scale = 1,
+}, Window)
+
+local function getViewport()
+    local camera = workspace.CurrentCamera
+    if camera then
+        return camera.ViewportSize
+    end
+    return Vector2.new(BASE_WIDTH + 30, BASE_HEIGHT + 30)
+end
+
+local function applyResponsiveScale()
+    if destroyed or not Window.Parent then
+        return
+    end
+
+    local viewport = getViewport()
+    local widthScale = (viewport.X - 24) / BASE_WIDTH
+    local heightScale = (viewport.Y - 24) / BASE_HEIGHT
+    currentScale = clamp(math.min(widthScale, heightScale), MIN_SCALE, MAX_SCALE)
+    WindowScale.Scale = currentScale
+end
 
 local Header = create("Frame", {
     Size = UDim2.new(1, 0, 0, 48),
@@ -307,7 +339,6 @@ local Header = create("Frame", {
     BorderSizePixel = 0,
 }, Window)
 corner(Header, 14)
-
 create("Frame", {
     Size = UDim2.new(1, 0, 0, 15),
     Position = UDim2.new(0, 0, 1, -15),
@@ -316,17 +347,17 @@ create("Frame", {
 }, Header)
 
 local OwnerAvatar = create("ImageLabel", {
-    Size = UDim2.new(0, 34, 0, 34),
-    Position = UDim2.new(0, 12, 0, 7),
+    Size = UDim2.fromOffset(34, 34),
+    Position = UDim2.fromOffset(12, 7),
     BackgroundColor3 = Color3.fromRGB(48, 52, 68),
     BorderSizePixel = 0,
     Image = "",
 }, Header)
 corner(OwnerAvatar, 17)
 
-local HeaderTitle = create("TextLabel", {
+create("TextLabel", {
     Size = UDim2.new(1, -120, 0, 23),
-    Position = UDim2.new(0, 56, 0, 3),
+    Position = UDim2.fromOffset(56, 3),
     BackgroundTransparency = 1,
     Text = "SERVER FINDER",
     TextColor3 = Color3.fromRGB(245, 245, 250),
@@ -335,42 +366,19 @@ local HeaderTitle = create("TextLabel", {
     TextXAlignment = Enum.TextXAlignment.Left,
 }, Header)
 
-local HeaderOwner = create("TextLabel", {
+create("TextLabel", {
     Size = UDim2.new(1, -120, 0, 17),
-    Position = UDim2.new(0, 57, 0, 25),
+    Position = UDim2.fromOffset(57, 25),
     BackgroundTransparency = 1,
-    Text = "by mateus_15600",
-    TextColor3 = Color3.fromRGB(145, 220, 180),
+    Text = IS_ADMIN and "admin • mateus_15600" or "by mateus_15600",
+    TextColor3 = IS_ADMIN and Color3.fromRGB(255, 205, 105) or Color3.fromRGB(145, 220, 180),
     TextSize = 11,
     Font = Enum.Font.SourceSans,
     TextXAlignment = Enum.TextXAlignment.Left,
 }, Header)
 
-task.spawn(function()
-    local ok, userId = pcall(function()
-        return Players:GetUserIdFromNameAsync("mateus_15600")
-    end)
-
-    if not ok or not userId then
-        return
-    end
-
-    local thumbnailOk, thumbnail = pcall(function()
-        local image = Players:GetUserThumbnailAsync(
-            userId,
-            Enum.ThumbnailType.HeadShot,
-            Enum.ThumbnailSize.Size100x100
-        )
-        return image
-    end)
-
-    if thumbnailOk and thumbnail and OwnerAvatar.Parent then
-        OwnerAvatar.Image = thumbnail
-    end
-end)
-
 local Minimize = create("TextButton", {
-    Size = UDim2.new(0, 30, 0, 30),
+    Size = UDim2.fromOffset(30, 30),
     Position = UDim2.new(1, -72, 0, 9),
     BackgroundColor3 = Color3.fromRGB(75, 80, 100),
     Text = "—",
@@ -381,7 +389,7 @@ local Minimize = create("TextButton", {
 corner(Minimize, 7)
 
 local Close = create("TextButton", {
-    Size = UDim2.new(0, 30, 0, 30),
+    Size = UDim2.fromOffset(30, 30),
     Position = UDim2.new(1, -38, 0, 9),
     BackgroundColor3 = Color3.fromRGB(190, 55, 65),
     Text = "×",
@@ -393,7 +401,7 @@ corner(Close, 7)
 
 local Sidebar = create("Frame", {
     Size = UDim2.new(0, 132, 1, -60),
-    Position = UDim2.new(0, 10, 0, 56),
+    Position = UDim2.fromOffset(10, 56),
     BackgroundColor3 = Color3.fromRGB(24, 26, 36),
     BorderSizePixel = 0,
 }, Window)
@@ -401,7 +409,7 @@ corner(Sidebar, 10)
 
 local Main = create("Frame", {
     Size = UDim2.new(1, -162, 1, -60),
-    Position = UDim2.new(0, 152, 0, 56),
+    Position = UDim2.fromOffset(152, 56),
     BackgroundTransparency = 1,
 }, Window)
 
@@ -418,7 +426,7 @@ local function makePage(name)
     return page
 end
 
-local function makeTab(name, text, order)
+local function makeTab(name, text, order, color)
     local button = create("TextButton", {
         Size = UDim2.new(1, -16, 0, 42),
         Position = UDim2.new(0, 8, 0, 12 + (order - 1) * 50),
@@ -428,6 +436,7 @@ local function makeTab(name, text, order)
         TextSize = 13,
         Font = Enum.Font.SourceSansBold,
     }, Sidebar)
+    button:SetAttribute("ActiveColor", color or Color3.fromRGB(0, 135, 190))
     corner(button, 8)
     TabButtons[name] = button
     return button
@@ -435,17 +444,24 @@ end
 
 local SearchPage = makePage("Buscar")
 local ChatPage = makePage("Chat")
+local AdminPage
 
 local SearchTab = makeTab("Buscar", "⌂  BUSCAR", 1)
 local ChatTab = makeTab("Chat", "☵  CHAT BOT", 2)
+local AdminTab
+if IS_ADMIN then
+    AdminPage = makePage("Admin")
+    AdminTab = makeTab("Admin", "⚙  ADMIN", 3, Color3.fromRGB(180, 120, 35))
+end
 
 local function showPage(name)
     for pageName, page in pairs(Pages) do
         page.Visible = pageName == name
     end
     for tabName, button in pairs(TabButtons) do
+        local activeColor = button:GetAttribute("ActiveColor") or Color3.fromRGB(0, 135, 190)
         button.BackgroundColor3 = tabName == name
-            and Color3.fromRGB(0, 135, 190)
+            and activeColor
             or Color3.fromRGB(40, 43, 57)
     end
 end
@@ -456,8 +472,13 @@ end)
 ChatTab.MouseButton1Click:Connect(function()
     showPage("Chat")
 end)
+if AdminTab then
+    AdminTab.MouseButton1Click:Connect(function()
+        showPage("Admin")
+    end)
+end
 
--- Página de busca
+-- Página Buscar.
 create("TextLabel", {
     Size = UDim2.new(1, 0, 0, 34),
     BackgroundTransparency = 1,
@@ -470,9 +491,9 @@ create("TextLabel", {
 
 create("TextLabel", {
     Size = UDim2.new(1, 0, 0, 36),
-    Position = UDim2.new(0, 0, 0, 34),
+    Position = UDim2.fromOffset(0, 34),
     BackgroundTransparency = 1,
-    Text = "Escolha uma estratégia. BR/EN são rótulos; a API não informa idioma.",
+    Text = "Escolha uma estratégia. BR/EN são rótulos; a API não informa o idioma do servidor.",
     TextColor3 = Color3.fromRGB(165, 170, 190),
     TextSize = 12,
     TextWrapped = true,
@@ -494,7 +515,7 @@ corner(SearchStatus, 8)
 
 local function searchButton(text, position, color)
     local button = create("TextButton", {
-        Size = UDim2.new(0, 205, 0, 46),
+        Size = UDim2.fromOffset(205, 46),
         Position = position,
         BackgroundColor3 = color,
         Text = text,
@@ -506,19 +527,17 @@ local function searchButton(text, position, color)
     return button
 end
 
-local BRButton = searchButton("Servidor BR*", UDim2.new(0, 0, 0, 88), Color3.fromRGB(0, 145, 75))
-local ENButton = searchButton("English Server*", UDim2.new(0, 220, 0, 88), Color3.fromRGB(0, 105, 205))
+local BRButton = searchButton("Servidor BR*", UDim2.fromOffset(0, 88), Color3.fromRGB(0, 145, 75))
+local ENButton = searchButton("English Server*", UDim2.fromOffset(220, 88), Color3.fromRGB(0, 105, 205))
 local VerifiedButton = searchButton(
     "Procurar usuário verificado",
-    UDim2.new(0, 0, 0, 148),
+    UDim2.fromOffset(0, 148),
     Color3.fromRGB(120, 55, 190)
 )
-local RandomButton = searchButton("Servidor aleatório", UDim2.new(0, 220, 0, 148), Color3.fromRGB(205, 115, 0))
-
-local searchVerifiedUser
+local RandomButton = searchButton("Servidor aleatório", UDim2.fromOffset(220, 148), Color3.fromRGB(205, 115, 0))
 
 local VerifiedPopup = create("Frame", {
-    Size = UDim2.new(0, 390, 0, 185),
+    Size = UDim2.fromOffset(390, 185),
     Position = UDim2.new(0.5, -195, 0.5, -92),
     BackgroundColor3 = Color3.fromRGB(29, 32, 44),
     BorderSizePixel = 0,
@@ -526,10 +545,11 @@ local VerifiedPopup = create("Frame", {
     ZIndex = 20,
 }, Window)
 corner(VerifiedPopup, 12)
+stroke(VerifiedPopup, Color3.fromRGB(100, 115, 145), 1, 0.25)
 
 create("TextLabel", {
     Size = UDim2.new(1, -55, 0, 34),
-    Position = UDim2.new(0, 15, 0, 12),
+    Position = UDim2.fromOffset(15, 12),
     BackgroundTransparency = 1,
     Text = "Procurar usuário com selo azul",
     TextColor3 = Color3.fromRGB(245, 245, 250),
@@ -540,20 +560,20 @@ create("TextLabel", {
 }, VerifiedPopup)
 
 local VerifiedClose = create("TextButton", {
-    Size = UDim2.new(0, 28, 0, 28),
+    Size = UDim2.fromOffset(28, 28),
     Position = UDim2.new(1, -38, 0, 10),
     BackgroundColor3 = Color3.fromRGB(190, 55, 65),
-    Text = "X",
+    Text = "×",
     TextColor3 = Color3.fromRGB(255, 255, 255),
-    TextSize = 13,
+    TextSize = 18,
     Font = Enum.Font.SourceSansBold,
     ZIndex = 21,
 }, VerifiedPopup)
-corner(VerifiedClose, 6)
+corner(VerifiedClose, 7)
 
 local VerifiedInput = create("TextBox", {
     Size = UDim2.new(1, -130, 0, 38),
-    Position = UDim2.new(0, 15, 0, 62),
+    Position = UDim2.fromOffset(15, 62),
     BackgroundColor3 = Color3.fromRGB(40, 43, 57),
     PlaceholderText = "Username do jogador",
     Text = "",
@@ -567,7 +587,7 @@ local VerifiedInput = create("TextBox", {
 corner(VerifiedInput, 8)
 
 local VerifiedSearch = create("TextButton", {
-    Size = UDim2.new(0, 100, 0, 38),
+    Size = UDim2.fromOffset(100, 38),
     Position = UDim2.new(1, -115, 0, 62),
     BackgroundColor3 = Color3.fromRGB(0, 135, 190),
     Text = "Verificar",
@@ -580,7 +600,7 @@ corner(VerifiedSearch, 8)
 
 local VerifiedStatus = create("TextLabel", {
     Size = UDim2.new(1, -30, 0, 55),
-    Position = UDim2.new(0, 15, 0, 112),
+    Position = UDim2.fromOffset(15, 112),
     BackgroundTransparency = 1,
     Text = "Informe um username. O filtro só funciona se o jogador estiver online no Brookhaven.",
     TextColor3 = Color3.fromRGB(185, 190, 210),
@@ -595,12 +615,11 @@ VerifiedButton.MouseButton1Click:Connect(function()
     VerifiedPopup.Visible = true
     VerifiedInput:CaptureFocus()
 end)
-
 VerifiedClose.MouseButton1Click:Connect(function()
     VerifiedPopup.Visible = false
 end)
 
--- Página do chatbot: conversa local com contexto e memória da sessão.
+-- Página Chat.
 create("TextLabel", {
     Size = UDim2.new(1, 0, 0, 32),
     BackgroundTransparency = 1,
@@ -611,9 +630,9 @@ create("TextLabel", {
     TextXAlignment = Enum.TextXAlignment.Left,
 }, ChatPage)
 
-local ChatSubtitle = create("TextLabel", {
+create("TextLabel", {
     Size = UDim2.new(1, 0, 0, 24),
-    Position = UDim2.new(0, 0, 0, 32),
+    Position = UDim2.fromOffset(0, 32),
     BackgroundTransparency = 1,
     Text = "Online nesta sessão  •  conversa privada local",
     TextColor3 = Color3.fromRGB(120, 220, 165),
@@ -624,7 +643,7 @@ local ChatSubtitle = create("TextLabel", {
 
 local ChatLog = create("ScrollingFrame", {
     Size = UDim2.new(1, 0, 1, -176),
-    Position = UDim2.new(0, 0, 0, 94),
+    Position = UDim2.fromOffset(0, 94),
     BackgroundColor3 = Color3.fromRGB(23, 26, 36),
     BorderSizePixel = 0,
     CanvasSize = UDim2.new(0, 0, 0, 0),
@@ -652,7 +671,7 @@ local ChatInput = create("TextBox", {
 corner(ChatInput, 9)
 
 local SendButton = create("TextButton", {
-    Size = UDim2.new(0, 74, 0, 42),
+    Size = UDim2.fromOffset(74, 42),
     Position = UDim2.new(1, -74, 1, -44),
     BackgroundColor3 = Color3.fromRGB(0, 135, 190),
     Text = "Enviar",
@@ -667,7 +686,7 @@ local function addMessage(author, text, color)
         Size = UDim2.new(1, -18, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundColor3 = Color3.fromRGB(35, 38, 50),
-        Text = "  " .. author .. "\n  " .. text,
+        Text = "  " .. author .. "\n  " .. tostring(text),
         TextColor3 = color,
         TextSize = 13,
         TextWrapped = true,
@@ -692,13 +711,13 @@ end)
 
 local Suggestions = create("Frame", {
     Size = UDim2.new(1, 0, 0, 28),
-    Position = UDim2.new(0, 0, 0, 60),
+    Position = UDim2.fromOffset(0, 60),
     BackgroundTransparency = 1,
 }, ChatPage)
 
 local function suggestion(text, position)
     local button = create("TextButton", {
-        Size = UDim2.new(0, 128, 0, 26),
+        Size = UDim2.fromOffset(128, 26),
         Position = position,
         BackgroundColor3 = Color3.fromRGB(42, 47, 63),
         Text = text,
@@ -710,15 +729,15 @@ local function suggestion(text, position)
     return button
 end
 
-local SuggestTalk = suggestion("Vamos conversar", UDim2.new(0, 0, 0, 0))
-local SuggestAbout = suggestion("Fale sobre você", UDim2.new(0, 138, 0, 0))
-local SuggestClear = suggestion("Limpar conversa", UDim2.new(0, 276, 0, 0))
+local SuggestTalk = suggestion("Vamos conversar", UDim2.fromOffset(0, 0))
+local SuggestAbout = suggestion("Fale sobre você", UDim2.fromOffset(138, 0))
+local SuggestClear = suggestion("Limpar conversa", UDim2.fromOffset(276, 0))
+
 local ChatState = {
     lastIntent = nil,
     lastMode = nil,
     turnCount = 0,
 }
-
 local runSearch
 
 local function hasAny(text, words)
@@ -748,81 +767,68 @@ local function answer(rawMessage)
         ChatState.lastIntent = "clear"
         return "Conversa limpa. Podemos começar de novo."
     end
-
     if hasAny(text, {"qual seu nome", "seu nome"}) then
         ChatState.lastIntent = "identity"
         return "Eu sou " .. Config.botName .. ". Fui configurado para ajudar com esta interface."
     end
-
     if hasAny(text, {"oi", "ola", "olá", "bom dia", "boa tarde", "boa noite"}) then
         ChatState.lastIntent = "greeting"
-        return "Oi, " .. Config.userName .. ". Quer conversar ou quer que eu encontre um servidor para você?"
+        return "Oi, " .. Config.userName .. ". Quer conversar ou quer que eu encontre um servidor?"
     end
-
     if hasAny(text, {"o que você faz", "o que voce faz", "como funciona", "capacidades"}) then
         ChatState.lastIntent = "capabilities"
-        return "Eu entendo perguntas sobre a interface, explico os modos de busca, lembro o contexto da conversa e posso iniciar uma busca quando você pedir claramente."
+        return "Posso explicar a interface, lembrar o contexto desta sessão e iniciar uma busca quando você pedir."
     end
-
     if hasAny(text, {"erro", "falhou", "não funciona", "nao funciona", "problema"}) then
         ChatState.lastIntent = "troubleshooting"
-        return "Me diga o texto exato do erro. Sem a mensagem, só consigo separar entre falha HTTP, teleporte recusado ou bloqueio do executor."
+        return "Me diga o texto exato do erro. Assim separo falha HTTP, teleporte recusado ou bloqueio do executor."
     end
-
     if hasAny(text, {"idioma", "brasil", "br", "english", "inglês"}) then
         ChatState.lastIntent = "language"
-        return "Os rótulos BR e EN não filtram idioma: a API pública do Roblox não informa a região ou o idioma do servidor."
+        return "Os rótulos BR e EN são apenas informativos: a API pública não informa o idioma do servidor."
     end
-
-    if hasAny(text, {"servidor cheio", "servidor bom", "melhor servidor"}) then
-        ChatState.lastIntent = "servers"
-        return "Entendi, você está falando de servidores. A aba Buscar cuida disso; aqui no chat eu fico só na conversa. O que você quer saber sobre eles?"
-    end
-
     if hasAny(text, {"servidor aleatório", "servidor aleatorio", "qualquer servidor"}) then
-        ChatState.lastIntent = "servers"
-        return "Servidor aleatório é uma opção da aba Buscar. Posso conversar sobre como ele funciona, mas não vou iniciar ações pelo chat."
+        ChatState.lastIntent = "search"
+        ChatState.lastMode = "random"
+        task.defer(function()
+            runSearch("random", "servidor aleatório")
+        end)
+        return "Vou procurar um servidor aleatório agora."
+    end
+    if hasAny(text, {"buscar servidor", "trocar servidor", "servidor cheio", "melhor servidor"}) then
+        ChatState.lastIntent = "search"
+        ChatState.lastMode = "full"
+        task.defer(function()
+            runSearch("full", "servidor")
+        end)
+        return "Vou procurar um servidor com bastante movimento."
+    end
+    if hasAny(text, {"fale sobre você", "quem é você"}) then
+        ChatState.lastIntent = "about"
+        return "Sou um assistente local. Não envio a conversa para uma API externa."
     end
 
-    if hasAny(text, {"trocar de servidor", "mudar de servidor", "teleportar", "teleporte"}) then
-        ChatState.lastIntent = "servers"
-        return "Posso conversar sobre troca de servidor, diferenças entre os modos e os erros comuns. Para executar a troca, use a aba Buscar."
-    end
-
-    if hasAny(text, {"ajuda", "comandos", "menu"}) then
-        ChatState.lastIntent = "help"
-        return "Tente: 'melhor servidor', 'servidor aleatório', 'pode trocar', 'como funciona' ou 'meu nome é...'."
-    end
-
-    ChatState.lastIntent = "unknown"
-    return "Entendi a mensagem, mas ainda não tenho contexto suficiente. Você está falando da busca de servidores, do teleporte ou da interface?"
+    ChatState.lastIntent = "fallback"
+    return "Entendi. Posso conversar, explicar a interface ou buscar um servidor."
 end
 
-local function sendChat(text)
-    text = text or ChatInput.Text
+local function sendChat(message)
+    local text = message or ChatInput.Text
     if not text or text:gsub("%s+", "") == "" then
         return
     end
-
     ChatInput.Text = ""
     addMessage(Config.userName, text, Color3.fromRGB(150, 210, 255))
     task.wait(0.2)
-
-    local response = answer(text)
-    addMessage(Config.botName, response, Color3.fromRGB(170, 240, 185))
-
+    addMessage(Config.botName, answer(text), Color3.fromRGB(170, 240, 185))
 end
 
-SendButton.MouseButton1Click:Connect(function()
-    sendChat()
-end)
-
+SendButton.MouseButton1Click:Connect(sendChat)
 ChatInput.FocusLost:Connect(function(enterPressed)
     if enterPressed then
         sendChat()
     end
 end)
-
 SuggestTalk.MouseButton1Click:Connect(function()
     sendChat("Oi, quero conversar")
 end)
@@ -833,22 +839,116 @@ SuggestClear.MouseButton1Click:Connect(function()
     sendChat("Limpar conversa")
 end)
 
--- Loading screen personalizada.
--- Ela fica por cima apenas durante inicializacao/operacoes e possui
--- uma saida manual para evitar que um executor deixe a interface presa.
+-- Aba Admin: ela nem é criada para outros usuários.
+local AdminStatus
+if AdminPage then
+    create("TextLabel", {
+        Size = UDim2.new(1, 0, 0, 34),
+        BackgroundTransparency = 1,
+        Text = "Painel administrativo",
+        TextColor3 = Color3.fromRGB(255, 220, 135),
+        TextSize = 20,
+        Font = Enum.Font.SourceSansBold,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    }, AdminPage)
+
+    create("TextLabel", {
+        Size = UDim2.new(1, 0, 0, 40),
+        Position = UDim2.fromOffset(0, 36),
+        BackgroundTransparency = 1,
+        Text = "Acesso local autorizado para @" .. ADMIN_USERNAME
+            .. ". Use esta área para manutenção da interface.",
+        TextColor3 = Color3.fromRGB(185, 190, 210),
+        TextSize = 12,
+        TextWrapped = true,
+        Font = Enum.Font.SourceSans,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    }, AdminPage)
+
+    local AdminInfo = create("TextLabel", {
+        Size = UDim2.new(1, 0, 0, 76),
+        Position = UDim2.fromOffset(0, 92),
+        BackgroundColor3 = Color3.fromRGB(28, 31, 42),
+        Text = "Usuário: @" .. Player.Name .. "\n"
+            .. "Escala atual: calculando...\n"
+            .. "Viewport: calculando...",
+        TextColor3 = Color3.fromRGB(220, 225, 240),
+        TextSize = 13,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Font = Enum.Font.SourceSans,
+    }, AdminPage)
+    corner(AdminInfo, 9)
+
+    local AdminClear = create("TextButton", {
+        Size = UDim2.fromOffset(205, 44),
+        Position = UDim2.fromOffset(0, 184),
+        BackgroundColor3 = Color3.fromRGB(145, 70, 70),
+        Text = "Limpar blacklist",
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextSize = 13,
+        Font = Enum.Font.SourceSansBold,
+    }, AdminPage)
+    corner(AdminClear, 8)
+
+    local AdminScale = create("TextButton", {
+        Size = UDim2.fromOffset(205, 44),
+        Position = UDim2.fromOffset(220, 184),
+        BackgroundColor3 = Color3.fromRGB(0, 125, 165),
+        Text = "Recalcular escala",
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextSize = 13,
+        Font = Enum.Font.SourceSansBold,
+    }, AdminPage)
+    corner(AdminScale, 8)
+
+    AdminStatus = create("TextLabel", {
+        Size = UDim2.new(1, 0, 0, 46),
+        Position = UDim2.new(0, 0, 1, -52),
+        BackgroundColor3 = Color3.fromRGB(28, 31, 42),
+        Text = "Painel pronto.",
+        TextColor3 = Color3.fromRGB(165, 225, 180),
+        TextSize = 12,
+        TextWrapped = true,
+        Font = Enum.Font.SourceSans,
+    }, AdminPage)
+    corner(AdminStatus, 8)
+
+    AdminClear.MouseButton1Click:Connect(function()
+        table.clear(blacklist)
+        setStatus(AdminStatus, "Blacklist limpa com sucesso.", Color3.fromRGB(165, 225, 180))
+    end)
+    AdminScale.MouseButton1Click:Connect(function()
+        applyResponsiveScale()
+        setStatus(AdminStatus, "Escala recalculada: " .. string.format("%.2fx", currentScale), Color3.fromRGB(165, 225, 180))
+    end)
+
+    RunService.RenderStepped:Connect(function()
+        if destroyed or not AdminPage.Parent then
+            return
+        end
+        local viewport = getViewport()
+        AdminInfo.Text = "Usuário: @" .. Player.Name .. "\n"
+            .. "Escala atual: " .. string.format("%.2fx", currentScale) .. "\n"
+            .. "Viewport: " .. math.floor(viewport.X) .. " × " .. math.floor(viewport.Y)
+    end)
+end
+
+-- Loading renovado.
 local Loading = create("Frame", {
     Size = UDim2.new(1, 0, 1, 0),
     BackgroundColor3 = Color3.fromRGB(8, 10, 17),
-    BackgroundTransparency = 0.04,
+    BackgroundTransparency = 0.03,
     Visible = true,
     Active = true,
     ZIndex = 50,
 }, Window)
 corner(Loading, 14)
+stroke(Loading, Color3.fromRGB(0, 190, 230), 1, 0.35)
 
 local LoadingAccent = create("Frame", {
     Size = UDim2.new(0, 4, 1, -84),
-    Position = UDim2.new(0, 24, 0, 42),
+    Position = UDim2.fromOffset(24, 42),
     BackgroundColor3 = Color3.fromRGB(0, 190, 230),
     BorderSizePixel = 0,
     ZIndex = 51,
@@ -856,24 +956,19 @@ local LoadingAccent = create("Frame", {
 corner(LoadingAccent, 3)
 
 local LoadingAvatar = create("ImageLabel", {
-    Size = UDim2.new(0, 76, 0, 76),
-    Position = UDim2.new(0.5, -38, 0.20, 0),
+    Size = UDim2.fromOffset(76, 76),
+    Position = UDim2.new(0.5, -38, 0.18, 0),
     BackgroundColor3 = Color3.fromRGB(35, 40, 58),
     BorderSizePixel = 0,
     Image = "",
     ZIndex = 52,
 }, Loading)
 corner(LoadingAvatar, 38)
-
-local LoadingAvatarStroke = create("UIStroke", {
-    Color = Color3.fromRGB(0, 190, 230),
-    Thickness = 2,
-    Transparency = 0.15,
-}, LoadingAvatar)
+local LoadingAvatarStroke = stroke(LoadingAvatar, Color3.fromRGB(0, 190, 230), 2, 0.15)
 
 local LoadingBrand = create("TextLabel", {
     Size = UDim2.new(1, -80, 0, 24),
-    Position = UDim2.new(0, 40, 0.20, 86),
+    Position = UDim2.new(0, 40, 0.18, 86),
     BackgroundTransparency = 1,
     Text = "SERVER FINDER",
     TextColor3 = Color3.fromRGB(245, 248, 255),
@@ -883,12 +978,12 @@ local LoadingBrand = create("TextLabel", {
     ZIndex = 52,
 }, Loading)
 
-local LoadingByline = create("TextLabel", {
+create("TextLabel", {
     Size = UDim2.new(1, -80, 0, 18),
-    Position = UDim2.new(0, 40, 0.20, 110),
+    Position = UDim2.new(0, 40, 0.18, 110),
     BackgroundTransparency = 1,
-    Text = "by mateus_15600",
-    TextColor3 = Color3.fromRGB(120, 220, 220),
+    Text = IS_ADMIN and "admin mode • mateus_15600" or "by mateus_15600",
+    TextColor3 = IS_ADMIN and Color3.fromRGB(255, 205, 105) or Color3.fromRGB(120, 220, 220),
     TextSize = 12,
     Font = Enum.Font.SourceSans,
     TextXAlignment = Enum.TextXAlignment.Center,
@@ -897,7 +992,7 @@ local LoadingByline = create("TextLabel", {
 
 local LoadingTitle = create("TextLabel", {
     Size = UDim2.new(1, -80, 0, 32),
-    Position = UDim2.new(0, 40, 0.57, 0),
+    Position = UDim2.new(0, 40, 0.53, 0),
     BackgroundTransparency = 1,
     Text = "Preparando seu painel...",
     TextColor3 = Color3.fromRGB(240, 240, 250),
@@ -909,9 +1004,9 @@ local LoadingTitle = create("TextLabel", {
 
 local LoadingDetail = create("TextLabel", {
     Size = UDim2.new(1, -80, 0, 24),
-    Position = UDim2.new(0, 40, 0.66, 0),
+    Position = UDim2.new(0, 40, 0.64, 0),
     BackgroundTransparency = 1,
-    Text = "Carregando abas e chatbot",
+    Text = "Ajustando a interface à sua tela...",
     TextColor3 = Color3.fromRGB(175, 180, 200),
     TextSize = 12,
     Font = Enum.Font.SourceSans,
@@ -920,25 +1015,31 @@ local LoadingDetail = create("TextLabel", {
 }, Loading)
 
 local LoadingBarBack = create("Frame", {
-    Size = UDim2.new(0, 300, 0, 6),
-    Position = UDim2.new(0.5, -150, 0.75, 0),
+    Size = UDim2.new(0, 300, 0, 7),
+    Position = UDim2.new(0.5, -150, 0.74, 0),
     BackgroundColor3 = Color3.fromRGB(37, 44, 62),
     BorderSizePixel = 0,
     ZIndex = 51,
 }, Loading)
-corner(LoadingBarBack, 3)
+corner(LoadingBarBack, 4)
 
 local LoadingBarFill = create("Frame", {
-    Size = UDim2.new(0.18, 0, 1, 0),
+    Size = UDim2.new(0.12, 0, 1, 0),
     BackgroundColor3 = Color3.fromRGB(0, 190, 230),
     BorderSizePixel = 0,
     ZIndex = 52,
 }, LoadingBarBack)
-corner(LoadingBarFill, 3)
+corner(LoadingBarFill, 4)
+create("UIGradient", {
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 150, 220)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 235, 205)),
+    }),
+}, LoadingBarFill)
 
 local LoadingHint = create("TextLabel", {
     Size = UDim2.new(1, -80, 0, 18),
-    Position = UDim2.new(0, 40, 0.79, 0),
+    Position = UDim2.new(0, 40, 0.78, 0),
     BackgroundTransparency = 1,
     Text = "O loading fecha sozinho em alguns segundos.",
     TextColor3 = Color3.fromRGB(125, 135, 160),
@@ -949,7 +1050,7 @@ local LoadingHint = create("TextLabel", {
 }, Loading)
 
 local LoadingContinue = create("TextButton", {
-    Size = UDim2.new(0, 150, 0, 32),
+    Size = UDim2.fromOffset(150, 32),
     Position = UDim2.new(0.5, -75, 0.87, 0),
     BackgroundColor3 = Color3.fromRGB(0, 135, 190),
     BorderSizePixel = 0,
@@ -957,32 +1058,32 @@ local LoadingContinue = create("TextButton", {
     TextColor3 = Color3.fromRGB(255, 255, 255),
     TextSize = 12,
     Font = Enum.Font.SourceSansBold,
-    AutoButtonColor = true,
     ZIndex = 52,
 }, Loading)
 corner(LoadingContinue, 8)
 
-if OwnerAvatar.Image and OwnerAvatar.Image ~= "" then
-    LoadingAvatar.Image = OwnerAvatar.Image
-end
-
 task.spawn(function()
-    for _ = 1, 12 do
-        if LoadingAvatar.Parent and OwnerAvatar.Image and OwnerAvatar.Image ~= "" then
-            LoadingAvatar.Image = OwnerAvatar.Image
-            break
-        end
-        task.wait(0.25)
+    local ok, userId = pcall(function()
+        return Players:GetUserIdFromNameAsync(ADMIN_USERNAME)
+    end)
+    if not ok or not userId then
+        return
+    end
+    local thumbOk, thumbnail = pcall(function()
+        return Players:GetUserThumbnailAsync(
+            userId,
+            Enum.ThumbnailType.HeadShot,
+            Enum.ThumbnailSize.Size100x100
+        )
+    end)
+    if thumbOk and thumbnail and OwnerAvatar.Parent then
+        OwnerAvatar.Image = thumbnail
+        LoadingAvatar.Image = thumbnail
     end
 end)
 
-local function showLoading(text)
-    LoadingDetail.Text = text or "Processando..."
-    LoadingTitle.Text = "Aguarde um momento..."
-    LoadingHint.Text = "Voce pode continuar e fechar esta tela quando quiser."
-    LoadingBarFill.Size = UDim2.new(0.62, 0, 1, 0)
-    Loading.Visible = true
-end
+local loadingProgress = 0.12
+local loadingMessage = "Ajustando a interface à sua tela..."
 
 local function hideLoading()
     if Loading and Loading.Parent then
@@ -990,11 +1091,34 @@ local function hideLoading()
     end
 end
 
-LoadingContinue.MouseButton1Click:Connect(function()
-    hideLoading()
+local function showLoading(text)
+    loadingMessage = text or "Processando..."
+    LoadingDetail.Text = loadingMessage
+    LoadingTitle.Text = "Aguarde um momento..."
+    LoadingHint.Text = "Você pode continuar e fechar esta tela quando quiser."
+    loadingProgress = math.max(loadingProgress, 0.48)
+    LoadingBarFill.Size = UDim2.new(loadingProgress, 0, 1, 0)
+    Loading.Visible = true
+end
+
+LoadingContinue.MouseButton1Click:Connect(hideLoading)
+
+local loadingConnection
+loadingConnection = RunService.RenderStepped:Connect(function(delta)
+    if destroyed then
+        loadingConnection:Disconnect()
+        return
+    end
+    applyResponsiveScale()
+    if Loading.Visible then
+        loadingProgress = math.min(0.94, loadingProgress + delta * 0.10)
+        LoadingBarFill.Size = UDim2.new(loadingProgress, 0, 1, 0)
+        LoadingAvatar.Rotation = (LoadingAvatar.Rotation + delta * 18) % 360
+        LoadingTitle.Text = "Preparando seu painel" .. string.rep(".", math.floor(os.clock() * 2) % 4)
+    end
 end)
 
--- Teleporte
+-- Teleporte e busca verificada.
 local function teleport(server)
     blacklist[server.id] = os.time() + Config.blacklistTime
     teleportFailed = false
@@ -1002,7 +1126,6 @@ local function teleport(server)
     local ok, errorMessage = pcall(function()
         TeleportService:TeleportToPlaceInstance(PLACE_ID, server.id, Player)
     end)
-
     if not ok then
         setStatus(SearchStatus, "Falha ao iniciar: " .. tostring(errorMessage), Color3.fromRGB(240, 130, 130))
         return false
@@ -1021,65 +1144,50 @@ pcall(function()
     end)
 end)
 
-searchVerifiedUser = function()
+local function searchVerifiedUser()
     local username = VerifiedInput.Text:gsub("^%s+", ""):gsub("%s+$", "")
-
     if username == "" then
-        VerifiedStatus.Text = "Digite um username."
-        VerifiedStatus.TextColor3 = Color3.fromRGB(240, 130, 130)
+        setStatus(VerifiedStatus, "Digite um username.", Color3.fromRGB(240, 130, 130))
         return
     end
-
     if searching then
-        VerifiedStatus.Text = "Aguarde a busca atual terminar."
+        setStatus(VerifiedStatus, "Aguarde a busca atual terminar.", Color3.fromRGB(225, 210, 110))
         return
     end
 
     searching = true
-    VerifiedStatus.Text = "Consultando o perfil..."
-    VerifiedStatus.TextColor3 = Color3.fromRGB(225, 210, 110)
+    setStatus(VerifiedStatus, "Consultando o perfil...", Color3.fromRGB(225, 210, 110))
     showLoading("Verificando o usuário...")
 
     task.spawn(function()
         local ok, result = pcall(function()
-            local lookupBody = HttpService:JSONEncode({
-                usernames = {username},
-                excludeBannedUsers = true,
-            })
-
             local lookupResponse = httpRequest(
                 "https://users.roblox.com/v1/usernames/users",
                 "POST",
-                lookupBody
+                HttpService:JSONEncode({
+                    usernames = {username},
+                    excludeBannedUsers = true,
+                })
             )
             local lookupData = HttpService:JSONDecode(lookupResponse)
             local userData = lookupData.data and lookupData.data[1]
-
             if not userData or not userData.id then
                 error("Usuário não encontrado.")
             end
 
-            local profileResponse = httpGet(
-                "https://users.roblox.com/v1/users/" .. tostring(userData.id)
-            )
+            local profileResponse = httpGet("https://users.roblox.com/v1/users/" .. tostring(userData.id))
             local profile = HttpService:JSONDecode(profileResponse)
-
             if profile.hasVerifiedBadge ~= true then
-                error("Esse usuário não possui o selo azul.")
+                error("Esse usuário não possui o selo de verificação.")
             end
-
-            local presenceBody = HttpService:JSONEncode({
-                userIds = {userData.id},
-            })
 
             local presenceResponse = httpRequest(
                 "https://presence.roblox.com/v1/presence/users",
                 "POST",
-                presenceBody
+                HttpService:JSONEncode({userIds = {userData.id}})
             )
             local presenceData = HttpService:JSONDecode(presenceResponse)
-            local presence = presenceData.userPresences
-                and presenceData.userPresences[1]
+            local presence = presenceData.userPresences and presenceData.userPresences[1]
 
             if not presence
                 or presence.userPresenceType ~= 2
@@ -1098,26 +1206,19 @@ searchVerifiedUser = function()
         end)
 
         if not ok then
-            VerifiedStatus.Text = tostring(result)
-            VerifiedStatus.TextColor3 = Color3.fromRGB(240, 130, 130)
-            hideLoading()
+            setStatus(VerifiedStatus, tostring(result), Color3.fromRGB(240, 130, 130))
             searching = false
+            hideLoading()
             return
         end
 
-        VerifiedStatus.Text = "Selo confirmado. Entrando no servidor de "
-            .. result.username
-            .. "..."
-        VerifiedStatus.TextColor3 = Color3.fromRGB(160, 230, 175)
+        setStatus(VerifiedStatus, "Servidor encontrado. Entrando...", Color3.fromRGB(160, 230, 175))
         VerifiedPopup.Visible = false
-
         local joined = teleport(result)
-        hideLoading()
         searching = false
-
+        hideLoading()
         if not joined then
-            VerifiedStatus.Text = "O teleporte para o servidor verificado falhou."
-            VerifiedStatus.TextColor3 = Color3.fromRGB(240, 130, 130)
+            setStatus(VerifiedStatus, "O teleporte para o servidor falhou.", Color3.fromRGB(240, 130, 130))
         end
     end)
 end
@@ -1134,18 +1235,15 @@ runSearch = function(mode, label)
 
     task.spawn(function()
         local connected = false
-
         for attempt = 1, 5 do
             if destroyed then
                 break
             end
-
             setStatus(
                 SearchStatus,
                 label .. " • tentativa " .. attempt .. "/5",
                 Color3.fromRGB(225, 210, 110)
             )
-
             local server = chooseServer(mode)
             if server then
                 setStatus(
@@ -1166,7 +1264,6 @@ runSearch = function(mode, label)
 
         searching = false
         hideLoading()
-
         if not connected then
             setStatus(SearchStatus, "Não foi possível trocar de servidor.", Color3.fromRGB(240, 130, 130))
         end
@@ -1183,7 +1280,7 @@ RandomButton.MouseButton1Click:Connect(function()
     runSearch("random", "servidor aleatório")
 end)
 
--- Arrastar janela pelo cabeçalho.
+-- Arrastar janela.
 local dragging = false
 local dragStart
 local startPosition
@@ -1222,10 +1319,12 @@ Minimize.MouseButton1Click:Connect(function()
     minimized = not minimized
     Sidebar.Visible = not minimized
     Main.Visible = not minimized
+    Loading.Visible = false
     Window.Size = minimized
-        and UDim2.new(0, 720, 0, 48)
-        or UDim2.new(0, 720, 0, 460)
+        and UDim2.fromOffset(BASE_WIDTH, 48)
+        or UDim2.fromOffset(BASE_WIDTH, BASE_HEIGHT)
     Minimize.Text = minimized and "+" or "—"
+    applyResponsiveScale()
 end)
 
 Close.MouseButton1Click:Connect(function()
@@ -1234,16 +1333,17 @@ Close.MouseButton1Click:Connect(function()
 end)
 
 showPage("Buscar")
-addMessage(Config.botName, "Olá, " .. Config.userName .. ". Use as abas ao lado para começar.")
+addMessage(Config.botName, "Olá, " .. Config.userName .. ". A interface foi ajustada para a sua tela.")
 
 task.spawn(function()
-    task.wait(1.2)
+    task.wait(1.8)
     hideLoading()
 end)
 
--- Fallback: mesmo se o executor atrasar uma tarefa, a GUI nao fica travada.
-task.delay(4, function()
+task.delay(5, function()
     if not destroyed then
         hideLoading()
     end
 end)
+
+applyResponsiveScale()
