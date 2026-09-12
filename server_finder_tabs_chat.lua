@@ -500,14 +500,16 @@ end
 
 local SearchPage = makePage("Buscar")
 local ChatPage = makePage("Chat")
+local ScriptsPage = makePage("Scripts")
 local AdminPage
 
 local SearchTab = makeTab("Buscar", "⌂  BUSCAR", 1)
 local ChatTab = makeTab("Chat", "☵  CHAT BOT", 2)
+local ScriptsTab = makeTab("Scripts", "▤  SCRIPTS", 3)
 local AdminTab
 if IS_ADMIN then
     AdminPage = makePage("Admin")
-    AdminTab = makeTab("Admin", "⚙  ADMIN", 3, Color3.fromRGB(180, 120, 35))
+    AdminTab = makeTab("Admin", "⚙  ADMIN", 4, Color3.fromRGB(180, 120, 35))
 end
 
 local function showPage(name)
@@ -527,6 +529,9 @@ SearchTab.MouseButton1Click:Connect(function()
 end)
 ChatTab.MouseButton1Click:Connect(function()
     showPage("Chat")
+end)
+ScriptsTab.MouseButton1Click:Connect(function()
+    showPage("Scripts")
 end)
 if AdminTab then
     AdminTab.MouseButton1Click:Connect(function()
