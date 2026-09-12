@@ -22,6 +22,36 @@ local RunService = game:GetService("RunService")
 
 local Player = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local PLACE_ID = 4924922222
+local GUARD_VERSION = "v1"
+local WRONG_GAME_MESSAGE = [[🇧🇷 você não está no jogo correto vá para o Brookhaven para usar o script
+🇺🇸 You're not in the correct game. Go to Brookhaven to use the script.]]
+
+local function isBrookhaven()
+    return (tonumber(game.PlaceId) or -1) == PLACE_ID
+end
+
+local function kickFromWrongGame()
+    warn("[Server-Finder " .. GUARD_VERSION .. "] Jogo incorreto. PlaceId: " .. tostring(game.PlaceId))
+    pcall(function()
+        if Player and Player.Parent then
+            Player:Kick(WRONG_GAME_MESSAGE)
+        end
+    end)
+    -- Segunda tentativa para executores que atrasam a primeira chamada.
+    task.delay(0.25, function()
+        pcall(function()
+            if Player and Player.Parent then
+                Player:Kick(WRONG_GAME_MESSAGE)
+            end
+        end)
+    end)
+end
+
+if not isBrookhaven() then
+    kickFromWrongGame()
+    return
+end
+
 local ADMIN_USERNAME = "mateus_15600"
 local IS_ADMIN = string.lower(Player.Name) == string.lower(ADMIN_USERNAME)
 
