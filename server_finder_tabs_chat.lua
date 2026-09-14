@@ -550,7 +550,7 @@ end
 local function makeTab(name, text, order, color)
     local button = create("TextButton", {
         Size = UDim2.new(1, -16, 0, 42),
-        Position = UDim2.new(0, 8, 0, 12 + (order - 1) * 50),
+        Position = UDim2.new(0, 8, 0, 26 + (order - 1) * 50),
         BackgroundColor3 = Color3.fromRGB(40, 43, 57),
         Text = text,
         TextColor3 = Color3.fromRGB(215, 218, 230),
@@ -630,8 +630,25 @@ InfoTab.MouseButton1Click:Connect(function()
 end)
 
 -- Página Buscar.
+local SearchCard = create("Frame", {
+    Size = UDim2.new(1, 0, 0, 238),
+    Position = UDim2.fromOffset(0, 0),
+    BackgroundColor3 = Color3.fromRGB(23, 28, 41),
+    BorderSizePixel = 0,
+}, SearchPage)
+corner(SearchCard, 11)
+stroke(SearchCard, Color3.fromRGB(70, 93, 125), 1, 0.72)
+
+create("Frame", {
+    Size = UDim2.fromOffset(4, 72),
+    Position = UDim2.fromOffset(0, 18),
+    BackgroundColor3 = Color3.fromRGB(75, 218, 225),
+    BorderSizePixel = 0,
+}, SearchCard)
+
 create("TextLabel", {
-    Size = UDim2.new(1, 0, 0, 34),
+    Size = UDim2.new(1, -28, 0, 34),
+    Position = UDim2.fromOffset(16, 15),
     BackgroundTransparency = 1,
     Text = "Troca inteligente de servidor",
     TextColor3 = Color3.fromRGB(245, 245, 250),
@@ -641,8 +658,8 @@ create("TextLabel", {
 }, SearchPage)
 
 create("TextLabel", {
-    Size = UDim2.new(1, 0, 0, 36),
-    Position = UDim2.fromOffset(0, 34),
+    Size = UDim2.new(1, -28, 0, 36),
+    Position = UDim2.fromOffset(16, 49),
     BackgroundTransparency = 1,
     Text = "Escolha uma estratégia. BR/EN são rótulos; a API não informa a região do servidor.",
     TextColor3 = Color3.fromRGB(165, 170, 190),
@@ -663,6 +680,7 @@ local SearchStatus = create("TextLabel", {
     Font = Enum.Font.SourceSans,
 }, SearchPage)
 corner(SearchStatus, 8)
+stroke(SearchStatus, Color3.fromRGB(98, 105, 135), 1, 0.72)
 
 local function searchButton(text, position, color)
     local button = create("TextButton", {
@@ -775,9 +793,115 @@ VerifiedClose.MouseButton1Click:Connect(function()
     VerifiedPopup.Visible = false
 end)
 
--- Página Chat.
+-- Página Scripts.
+local ScriptsCard = create("Frame", {
+    Size = UDim2.new(1, 0, 0, 288),
+    Position = UDim2.fromOffset(0, 0),
+    BackgroundColor3 = Color3.fromRGB(23, 28, 41),
+    BorderSizePixel = 0,
+}, ScriptsPage)
+corner(ScriptsCard, 11)
+stroke(ScriptsCard, Color3.fromRGB(70, 93, 125), 1, 0.72)
+
 create("TextLabel", {
-    Size = UDim2.new(1, 0, 0, 32),
+    Size = UDim2.new(1, -28, 0, 34),
+    Position = UDim2.fromOffset(14, 15),
+    BackgroundTransparency = 1,
+    Text = "Scripts e ferramentas",
+    TextColor3 = Color3.fromRGB(245, 248, 255),
+    TextSize = 20,
+    Font = Enum.Font.SourceSansBold,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, ScriptsPage)
+
+create("TextLabel", {
+    Size = UDim2.new(1, -28, 0, 32),
+    Position = UDim2.fromOffset(14, 49),
+    BackgroundTransparency = 1,
+    Text = "Recursos disponíveis nesta versão do Server Finder.",
+    TextColor3 = Color3.fromRGB(155, 190, 205),
+    TextSize = 12,
+    Font = Enum.Font.SourceSans,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, ScriptsPage)
+
+local function scriptFeature(title, description, position, accent)
+    local feature = create("Frame", {
+        Size = UDim2.new(0.5, -22, 0, 76),
+        Position = position,
+        BackgroundColor3 = Color3.fromRGB(30, 36, 52),
+        BorderSizePixel = 0,
+    }, ScriptsPage)
+    corner(feature, 9)
+    stroke(feature, accent, 1, 0.72)
+    create("Frame", {
+        Size = UDim2.fromOffset(3, 48),
+        Position = UDim2.fromOffset(10, 14),
+        BackgroundColor3 = accent,
+        BorderSizePixel = 0,
+    }, feature)
+    create("TextLabel", {
+        Size = UDim2.new(1, -30, 0, 22),
+        Position = UDim2.fromOffset(22, 11),
+        BackgroundTransparency = 1,
+        Text = title,
+        TextColor3 = Color3.fromRGB(235, 240, 250),
+        TextSize = 13,
+        Font = Enum.Font.SourceSansBold,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    }, feature)
+    create("TextLabel", {
+        Size = UDim2.new(1, -30, 0, 32),
+        Position = UDim2.fromOffset(22, 34),
+        BackgroundTransparency = 1,
+        Text = description,
+        TextColor3 = Color3.fromRGB(170, 180, 200),
+        TextSize = 11,
+        TextWrapped = true,
+        Font = Enum.Font.SourceSans,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top,
+    }, feature)
+end
+
+scriptFeature(
+    "Busca inteligente",
+    "Encontra instâncias públicas e evita servidores já testados.",
+    UDim2.fromOffset(14, 92),
+    Color3.fromRGB(75, 218, 225)
+)
+scriptFeature(
+    "Usuário verificado",
+    "Procura um jogador com selo azul online no Brookhaven.",
+    UDim2.new(0.5, 8, 0, 92),
+    Color3.fromRGB(164, 109, 235)
+)
+scriptFeature(
+    "Chat local",
+    "A NOVA responde nesta sessão sem enviar mensagens para fora.",
+    UDim2.fromOffset(14, 178),
+    Color3.fromRGB(120, 220, 165)
+)
+scriptFeature(
+    "Escala responsiva",
+    "A janela se adapta à tela e pode ser redimensionada.",
+    UDim2.new(0.5, 8, 0, 178),
+    Color3.fromRGB(230, 174, 88)
+)
+
+-- Página Chat.
+local ChatCard = create("Frame", {
+    Size = UDim2.new(1, 0, 1, 0),
+    Position = UDim2.fromOffset(0, 0),
+    BackgroundColor3 = Color3.fromRGB(20, 24, 36),
+    BorderSizePixel = 0,
+}, ChatPage)
+corner(ChatCard, 11)
+stroke(ChatCard, Color3.fromRGB(70, 93, 125), 1, 0.72)
+
+create("TextLabel", {
+    Size = UDim2.new(1, -28, 0, 32),
+    Position = UDim2.fromOffset(14, 12),
     BackgroundTransparency = 1,
     Text = Config.botName .. "  •  assistente de sessão",
     TextColor3 = Color3.fromRGB(245, 245, 250),
@@ -787,8 +911,8 @@ create("TextLabel", {
 }, ChatPage)
 
 create("TextLabel", {
-    Size = UDim2.new(1, 0, 0, 24),
-    Position = UDim2.fromOffset(0, 32),
+    Size = UDim2.new(1, -28, 0, 24),
+    Position = UDim2.fromOffset(14, 44),
     BackgroundTransparency = 1,
     Text = "Online nesta sessão  •  conversa privada local",
     TextColor3 = Color3.fromRGB(120, 220, 165),
@@ -798,14 +922,15 @@ create("TextLabel", {
 }, ChatPage)
 
 local ChatLog = create("ScrollingFrame", {
-    Size = UDim2.new(1, 0, 1, -176),
-    Position = UDim2.fromOffset(0, 94),
-    BackgroundColor3 = Color3.fromRGB(23, 26, 36),
+    Size = UDim2.new(1, -28, 1, -176),
+    Position = UDim2.fromOffset(14, 94),
+    BackgroundColor3 = Color3.fromRGB(15, 19, 29),
     BorderSizePixel = 0,
     CanvasSize = UDim2.new(0, 0, 0, 0),
     ScrollBarThickness = 5,
 }, ChatPage)
 corner(ChatLog, 10)
+stroke(ChatLog, Color3.fromRGB(63, 76, 103), 1, 0.76)
 
 local ChatLayout = create("UIListLayout", {
     Padding = UDim.new(0, 8),
@@ -813,8 +938,8 @@ local ChatLayout = create("UIListLayout", {
 }, ChatLog)
 
 local ChatInput = create("TextBox", {
-    Size = UDim2.new(1, -84, 0, 42),
-    Position = UDim2.new(0, 0, 1, -44),
+    Size = UDim2.new(1, -112, 0, 42),
+    Position = UDim2.new(0, 14, 1, -44),
     BackgroundColor3 = Color3.fromRGB(35, 38, 50),
     PlaceholderText = "Converse ou diga: buscar servidor",
     Text = "",
@@ -825,10 +950,11 @@ local ChatInput = create("TextBox", {
     ClearTextOnFocus = false,
 }, ChatPage)
 corner(ChatInput, 9)
+stroke(ChatInput, Color3.fromRGB(75, 92, 122), 1, 0.7)
 
 local SendButton = create("TextButton", {
-    Size = UDim2.fromOffset(74, 42),
-    Position = UDim2.new(1, -74, 1, -44),
+    Size = UDim2.fromOffset(90, 42),
+    Position = UDim2.new(1, -104, 1, -44),
     BackgroundColor3 = Color3.fromRGB(0, 135, 190),
     Text = "Enviar",
     TextColor3 = Color3.fromRGB(255, 255, 255),
@@ -836,6 +962,7 @@ local SendButton = create("TextButton", {
     Font = Enum.Font.SourceSansBold,
 }, ChatPage)
 corner(SendButton, 9)
+styleButton(SendButton, Color3.fromRGB(0, 135, 190), Color3.fromRGB(25, 165, 215))
 
 local function addMessage(author, text, color)
     local message = create("TextLabel", {
@@ -882,6 +1009,7 @@ local function suggestion(text, position)
         Font = Enum.Font.SourceSansBold,
     }, Suggestions)
     corner(button, 7)
+    styleButton(button, Color3.fromRGB(42, 47, 63), Color3.fromRGB(59, 68, 91))
     return button
 end
 
