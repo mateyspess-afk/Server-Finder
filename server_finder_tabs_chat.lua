@@ -5,12 +5,8 @@
     - Escala automática baseada no tamanho real da tela.
     - Layout centrado, arrastável, minimizável e compatível com toque.
     - Loading renovado com progresso, animação e botão "entrar agora".
-    - Aba Admin criada somente para o usuário mateus_15600.
+    - Aba Info com detalhes do script e acesso ao Discord.
     - Mantém busca de servidores, busca de usuário verificado e chatbot local.
-
-    Observação:
-    A autorização do painel Admin é local, porque este é um script de cliente.
-    Ela controla a interface, mas não substitui uma validação no servidor.
 ]]
 
 local Players = game:GetService("Players")
@@ -52,14 +48,14 @@ if not isBrookhaven() then
     return
 end
 
-local ADMIN_USERNAME = "mateus_15600"
-local IS_ADMIN = string.lower(Player.Name) == string.lower(ADMIN_USERNAME)
-
 local BASE_WIDTH = 720
 local BASE_HEIGHT = 460
 local MIN_SCALE = 0.55
 local MAX_SCALE = 1
 local MAX_USER_SCALE = 1.35
+local CREATOR_USERNAME = "mateus_15600"
+local DISCORD_INVITE = "https://discord.gg/RtfAn6zku8"
+local DISCORD_INVITE_CODE = "RtfAn6zku8"
 
 local Config = {
     botName = "NOVA",
@@ -466,8 +462,8 @@ create("TextLabel", {
     Size = UDim2.new(1, -235, 0, 17),
     Position = UDim2.fromOffset(57, 25),
     BackgroundTransparency = 1,
-    Text = IS_ADMIN and "admin • mateus_15600" or "by mateus_15600",
-    TextColor3 = IS_ADMIN and Color3.fromRGB(255, 205, 105) or Color3.fromRGB(145, 220, 180),
+    Text = "by mateus_15600",
+    TextColor3 = Color3.fromRGB(145, 220, 180),
     TextSize = 11,
     Font = Enum.Font.SourceSans,
     TextXAlignment = Enum.TextXAlignment.Left,
@@ -583,16 +579,10 @@ local SearchPage = makePage("Buscar")
 local ChatPage = makePage("Chat")
 local ScriptsPage = makePage("Scripts")
 local InfoPage = makePage("Info")
-local AdminPage
 
 local SearchTab = makeTab("Buscar", "⌂  BUSCAR", 1)
 local ChatTab = makeTab("Chat", "☵  CHAT BOT", 2)
 local ScriptsTab = makeTab("Scripts", "▤  SCRIPTS", 3)
-local AdminTab
-if IS_ADMIN then
-    AdminPage = makePage("Admin")
-    AdminTab = makeTab("Admin", "⚙  ADMIN", 4, Color3.fromRGB(180, 120, 35))
-end
 
 local InfoTab = create("TextButton", {
     Size = UDim2.fromOffset(52, 30),
@@ -638,11 +628,6 @@ end)
 InfoTab.MouseButton1Click:Connect(function()
     showPage("Info")
 end)
-if AdminTab then
-    AdminTab.MouseButton1Click:Connect(function()
-        showPage("Admin")
-    end)
-end
 
 -- Página Buscar.
 create("TextLabel", {
@@ -659,7 +644,7 @@ create("TextLabel", {
     Size = UDim2.new(1, 0, 0, 36),
     Position = UDim2.fromOffset(0, 34),
     BackgroundTransparency = 1,
-    Text = "Escolha uma estratégia. BR/EN são rótulos; a API não informa o idioma do servidor.",
+    Text = "Escolha uma estratégia. BR/EUA são rótulos; a API não informa a região do servidor.",
     TextColor3 = Color3.fromRGB(165, 170, 190),
     TextSize = 12,
     TextWrapped = true,
@@ -699,7 +684,7 @@ local function searchButton(text, position, color)
 end
 
 local BRButton = searchButton("Servidor BR*", UDim2.fromOffset(0, 88), Color3.fromRGB(0, 145, 75))
-local ENButton = searchButton("English Server*", UDim2.fromOffset(220, 88), Color3.fromRGB(0, 105, 205))
+local ENButton = searchButton("Servidor EUA*", UDim2.fromOffset(220, 88), Color3.fromRGB(0, 105, 205))
 local VerifiedButton = searchButton(
     "Procurar usuário verificado",
     UDim2.fromOffset(0, 148),
@@ -956,7 +941,7 @@ local function answer(rawMessage)
     end
     if hasAny(text, {"idioma", "brasil", "br", "english", "inglês"}) then
         ChatState.lastIntent = "language"
-        return "Os rótulos BR e EN são apenas informativos: a API pública não informa o idioma do servidor."
+        return "Os rótulos BR e EUA são apenas informativos: a API pública não informa a região do servidor."
     end
     if hasAny(text, {"servidor aleatório", "servidor aleatorio", "qualquer servidor"}) then
         ChatState.lastIntent = "search"
@@ -1056,9 +1041,9 @@ create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 78),
     Position = UDim2.fromOffset(14, 39),
     BackgroundTransparency = 1,
-    Text = "• Buscar: escolha uma estratégia para encontrar outro servidor.\n"
-        .. "• Chat bot: converse com a NOVA ou peça uma busca por texto.\n"
-        .. "• INFO: volte aqui para consultar recursos e avisos.",
+    Text = "• O Server Finder é um script Lua para Roblox/Brookhaven.\n"
+        .. "• Ele busca servidores públicos, tenta teleportar e verifica usuários.\n"
+        .. "• O chat da NOVA funciona localmente, sem enviar a conversa para uma API.",
     TextColor3 = Color3.fromRGB(215, 222, 235),
     TextSize = 12,
     TextWrapped = true,
@@ -1067,9 +1052,176 @@ create("TextLabel", {
     TextYAlignment = Enum.TextYAlignment.Top,
 }, InfoCard)
 
+local function copyToClipboard(text)
+    local clipboardFunctions = {
+        setclipboard,
+        toclipboard,
+        set_clipboard,
+    }
+    for _, clipboardFunction in ipairs(clipboardFunctions) do
+        if type(clipboardFunction) == "function" then
+            local ok = pcall(clipboardFunction, text)
+            if ok then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local Toast = create("Frame", {
+    Size = UDim2.fromOffset(224, 54),
+    Position = UDim2.new(1, 12, 0, 62),
+    BackgroundColor3 = Color3.fromRGB(28, 118, 92),
+    BorderSizePixel = 0,
+    Visible = false,
+    ZIndex = 80,
+}, Window)
+corner(Toast, 9)
+stroke(Toast, Color3.fromRGB(135, 255, 205), 1, 0.35)
+
+local ToastMessage = create("TextLabel", {
+    Size = UDim2.new(1, -24, 1, 0),
+    Position = UDim2.fromOffset(12, 0),
+    BackgroundTransparency = 1,
+    Text = "",
+    TextColor3 = Color3.fromRGB(240, 255, 248),
+    TextSize = 12,
+    TextWrapped = true,
+    Font = Enum.Font.SourceSansBold,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    TextYAlignment = Enum.TextYAlignment.Center,
+    ZIndex = 81,
+}, Toast)
+
+local toastId = 0
+local function showToast(message, color)
+    toastId = toastId + 1
+    local currentToastId = toastId
+    Toast.BackgroundColor3 = color or Color3.fromRGB(28, 118, 92)
+    ToastMessage.Text = message
+    Toast.Visible = true
+    task.delay(2.8, function()
+        if currentToastId == toastId and Toast.Parent then
+            Toast.Visible = false
+        end
+    end)
+end
+
+local DiscordCard = create("Frame", {
+    Size = UDim2.new(1, 0, 0, 64),
+    Position = UDim2.fromOffset(0, 308),
+    BackgroundColor3 = Color3.fromRGB(31, 35, 55),
+    BorderSizePixel = 0,
+}, InfoPage)
+corner(DiscordCard, 10)
+stroke(DiscordCard, Color3.fromRGB(105, 112, 220), 1, 0.62)
+
+local DiscordIconFallback = create("TextLabel", {
+    Size = UDim2.fromOffset(40, 40),
+    Position = UDim2.fromOffset(10, 12),
+    BackgroundColor3 = Color3.fromRGB(88, 101, 242),
+    Text = "☁",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextSize = 22,
+    Font = Enum.Font.SourceSansBold,
+    TextXAlignment = Enum.TextXAlignment.Center,
+    TextYAlignment = Enum.TextYAlignment.Center,
+}, DiscordCard)
+corner(DiscordIconFallback, 20)
+
+local DiscordIcon = create("ImageLabel", {
+    Size = UDim2.fromOffset(40, 40),
+    Position = UDim2.fromOffset(10, 12),
+    BackgroundTransparency = 1,
+    Image = "",
+    ImageTransparency = 1,
+}, DiscordCard)
+corner(DiscordIcon, 20)
+
+local DiscordName = create("TextLabel", {
+    Size = UDim2.new(1, -176, 0, 22),
+    Position = UDim2.fromOffset(60, 8),
+    BackgroundTransparency = 1,
+    Text = "Meu servidor no Discord",
+    TextColor3 = Color3.fromRGB(240, 242, 255),
+    TextSize = 13,
+    Font = Enum.Font.SourceSansBold,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, DiscordCard)
+
+create("TextLabel", {
+    Size = UDim2.new(1, -176, 0, 20),
+    Position = UDim2.fromOffset(60, 31),
+    BackgroundTransparency = 1,
+    Text = "discord.gg/RtfAn6zku8",
+    TextColor3 = Color3.fromRGB(165, 175, 215),
+    TextSize = 11,
+    Font = Enum.Font.SourceSans,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, DiscordCard)
+
+local CopyDiscordButton = create("TextButton", {
+    Size = UDim2.fromOffset(104, 36),
+    Position = UDim2.new(1, -114, 0, 14),
+    BackgroundColor3 = Color3.fromRGB(88, 101, 242),
+    Text = "COPIAR LINK",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextSize = 11,
+    Font = Enum.Font.SourceSansBold,
+}, DiscordCard)
+corner(CopyDiscordButton, 8)
+styleButton(CopyDiscordButton, Color3.fromRGB(88, 101, 242), Color3.fromRGB(111, 123, 255))
+
+CopyDiscordButton.MouseButton1Click:Connect(function()
+    if copyToClipboard(DISCORD_INVITE) then
+        showToast("✓ Link do Discord copiado!", Color3.fromRGB(28, 118, 92))
+    else
+        showToast("Não foi possível copiar neste executor.", Color3.fromRGB(145, 78, 64))
+    end
+end)
+
+task.spawn(function()
+    local ok, body = pcall(function()
+        return httpGet(
+            "https://discord.com/api/v10/invites/"
+                .. DISCORD_INVITE_CODE
+                .. "?with_counts=true"
+        )
+    end)
+    if not ok or not body then
+        return
+    end
+
+    local decoded, invite = pcall(function()
+        return HttpService:JSONDecode(body)
+    end)
+    local guild = decoded and invite and invite.guild
+    if not guild then
+        return
+    end
+
+    if guild.name and DiscordName.Parent then
+        DiscordName.Text = tostring(guild.name)
+    end
+
+    if guild.id and guild.icon and DiscordIcon.Parent then
+        local extension = tostring(guild.icon):sub(1, 2) == "a_" and "gif" or "png"
+        DiscordIcon.Image = "https://cdn.discordapp.com/icons/"
+            .. tostring(guild.id)
+            .. "/"
+            .. tostring(guild.icon)
+            .. "."
+            .. extension
+            .. "?size=128"
+        DiscordIcon.ImageTransparency = 0
+        DiscordIconFallback.Visible = false
+    end
+end)
+
 local InfoNotice = create("Frame", {
-    Size = UDim2.new(1, 0, 0, 88),
-    Position = UDim2.fromOffset(0, 218),
+    Size = UDim2.new(1, 0, 0, 82),
+    Position = UDim2.fromOffset(0, 212),
     BackgroundColor3 = Color3.fromRGB(29, 34, 47),
     BorderSizePixel = 0,
 }, InfoPage)
@@ -1091,8 +1243,8 @@ create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 44),
     Position = UDim2.fromOffset(14, 34),
     BackgroundTransparency = 1,
-    Text = "Os rótulos BR/EN são apenas informativos: a API pública não informa o idioma do servidor.\n"
-        .. "A aba Admin aparece somente para o usuário autorizado.",
+    Text = "Os rótulos BR/EUA são apenas informativos: a API pública não informa a região do servidor.\n"
+        .. "O botão EUA faz uma tentativa de matchmaking, mas não garante a localização.",
     TextColor3 = Color3.fromRGB(210, 215, 225),
     TextSize = 11,
     TextWrapped = true,
@@ -1111,101 +1263,6 @@ local InfoVersion = create("TextLabel", {
     Font = Enum.Font.SourceSans,
     TextXAlignment = Enum.TextXAlignment.Left,
 }, InfoPage)
-
--- Aba Admin: ela nem é criada para outros usuários.
-local AdminStatus
-if AdminPage then
-    create("TextLabel", {
-        Size = UDim2.new(1, 0, 0, 34),
-        BackgroundTransparency = 1,
-        Text = "Painel administrativo",
-        TextColor3 = Color3.fromRGB(255, 220, 135),
-        TextSize = 20,
-        Font = Enum.Font.SourceSansBold,
-        TextXAlignment = Enum.TextXAlignment.Left,
-    }, AdminPage)
-
-    create("TextLabel", {
-        Size = UDim2.new(1, 0, 0, 40),
-        Position = UDim2.fromOffset(0, 36),
-        BackgroundTransparency = 1,
-        Text = "Acesso local autorizado para @" .. ADMIN_USERNAME
-            .. ". Use esta área para manutenção da interface.",
-        TextColor3 = Color3.fromRGB(185, 190, 210),
-        TextSize = 12,
-        TextWrapped = true,
-        Font = Enum.Font.SourceSans,
-        TextXAlignment = Enum.TextXAlignment.Left,
-    }, AdminPage)
-
-    local AdminInfo = create("TextLabel", {
-        Size = UDim2.new(1, 0, 0, 76),
-        Position = UDim2.fromOffset(0, 92),
-        BackgroundColor3 = Color3.fromRGB(28, 31, 42),
-        Text = "Usuário: @" .. Player.Name .. "\n"
-            .. "Escala atual: calculando...\n"
-            .. "Viewport: calculando...",
-        TextColor3 = Color3.fromRGB(220, 225, 240),
-        TextSize = 13,
-        TextWrapped = true,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Font = Enum.Font.SourceSans,
-    }, AdminPage)
-    corner(AdminInfo, 9)
-
-    local AdminClear = create("TextButton", {
-        Size = UDim2.fromOffset(205, 44),
-        Position = UDim2.fromOffset(0, 184),
-        BackgroundColor3 = Color3.fromRGB(145, 70, 70),
-        Text = "Limpar blacklist",
-        TextColor3 = Color3.fromRGB(255, 255, 255),
-        TextSize = 13,
-        Font = Enum.Font.SourceSansBold,
-    }, AdminPage)
-    corner(AdminClear, 8)
-
-    local AdminScale = create("TextButton", {
-        Size = UDim2.fromOffset(205, 44),
-        Position = UDim2.fromOffset(220, 184),
-        BackgroundColor3 = Color3.fromRGB(0, 125, 165),
-        Text = "Recalcular escala",
-        TextColor3 = Color3.fromRGB(255, 255, 255),
-        TextSize = 13,
-        Font = Enum.Font.SourceSansBold,
-    }, AdminPage)
-    corner(AdminScale, 8)
-
-    AdminStatus = create("TextLabel", {
-        Size = UDim2.new(1, 0, 0, 46),
-        Position = UDim2.new(0, 0, 1, -52),
-        BackgroundColor3 = Color3.fromRGB(28, 31, 42),
-        Text = "Painel pronto.",
-        TextColor3 = Color3.fromRGB(165, 225, 180),
-        TextSize = 12,
-        TextWrapped = true,
-        Font = Enum.Font.SourceSans,
-    }, AdminPage)
-    corner(AdminStatus, 8)
-
-    AdminClear.MouseButton1Click:Connect(function()
-        table.clear(blacklist)
-        setStatus(AdminStatus, "Blacklist limpa com sucesso.", Color3.fromRGB(165, 225, 180))
-    end)
-    AdminScale.MouseButton1Click:Connect(function()
-        applyResponsiveScale()
-        setStatus(AdminStatus, "Escala recalculada: " .. string.format("%.2fx", currentScale), Color3.fromRGB(165, 225, 180))
-    end)
-
-    RunService.RenderStepped:Connect(function()
-        if destroyed or not AdminPage.Parent then
-            return
-        end
-        local viewport = getViewport()
-        AdminInfo.Text = "Usuário: @" .. Player.Name .. "\n"
-            .. "Escala atual: " .. string.format("%.2fx", currentScale) .. "\n"
-            .. "Viewport: " .. math.floor(viewport.X) .. " × " .. math.floor(viewport.Y)
-    end)
-end
 
 -- Loading renovado.
 local Loading = create("Frame", {
@@ -1255,8 +1312,8 @@ create("TextLabel", {
     Size = UDim2.new(1, -80, 0, 18),
     Position = UDim2.new(0, 40, 0.18, 110),
     BackgroundTransparency = 1,
-    Text = IS_ADMIN and "admin mode • mateus_15600" or "by mateus_15600",
-    TextColor3 = IS_ADMIN and Color3.fromRGB(255, 205, 105) or Color3.fromRGB(120, 220, 220),
+    Text = "by mateus_15600",
+    TextColor3 = Color3.fromRGB(120, 220, 220),
     TextSize = 12,
     Font = Enum.Font.SourceSans,
     TextXAlignment = Enum.TextXAlignment.Center,
@@ -1337,7 +1394,7 @@ corner(LoadingContinue, 8)
 
 task.spawn(function()
     local ok, userId = pcall(function()
-        return Players:GetUserIdFromNameAsync(ADMIN_USERNAME)
+        return Players:GetUserIdFromNameAsync(CREATOR_USERNAME)
     end)
     if not ok or not userId then
         return
@@ -1572,7 +1629,7 @@ BRButton.MouseButton1Click:Connect(function()
     runSearch("full", "servidor BR*")
 end)
 ENButton.MouseButton1Click:Connect(function()
-    runSearch("full", "servidor EN*")
+    runSearch("full", "servidor EUA*")
 end)
 RandomButton.MouseButton1Click:Connect(function()
     runSearch("random", "servidor aleatório")
