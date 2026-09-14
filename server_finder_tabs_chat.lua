@@ -644,7 +644,7 @@ create("TextLabel", {
     Size = UDim2.new(1, 0, 0, 36),
     Position = UDim2.fromOffset(0, 34),
     BackgroundTransparency = 1,
-    Text = "Escolha uma estratégia. BR/EUA são rótulos; a API não informa a região do servidor.",
+    Text = "Escolha uma estratégia. BR/EN são rótulos; a API não informa a região do servidor.",
     TextColor3 = Color3.fromRGB(165, 170, 190),
     TextSize = 12,
     TextWrapped = true,
@@ -684,7 +684,7 @@ local function searchButton(text, position, color)
 end
 
 local BRButton = searchButton("Servidor BR*", UDim2.fromOffset(0, 88), Color3.fromRGB(0, 145, 75))
-local ENButton = searchButton("Servidor EUA*", UDim2.fromOffset(220, 88), Color3.fromRGB(0, 105, 205))
+local ENButton = searchButton("English Server*", UDim2.fromOffset(220, 88), Color3.fromRGB(0, 105, 205))
 local VerifiedButton = searchButton(
     "Procurar usuário verificado",
     UDim2.fromOffset(0, 148),
@@ -941,7 +941,7 @@ local function answer(rawMessage)
     end
     if hasAny(text, {"idioma", "brasil", "br", "english", "inglês"}) then
         ChatState.lastIntent = "language"
-        return "Os rótulos BR e EUA são apenas informativos: a API pública não informa a região do servidor."
+        return "Os rótulos BR e EN são apenas informativos: a API pública não informa a região do servidor."
     end
     if hasAny(text, {"servidor aleatório", "servidor aleatorio", "qualquer servidor"}) then
         ChatState.lastIntent = "search"
@@ -1243,8 +1243,8 @@ create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 44),
     Position = UDim2.fromOffset(14, 34),
     BackgroundTransparency = 1,
-    Text = "Os rótulos BR/EUA são apenas informativos: a API pública não informa a região do servidor.\n"
-        .. "O botão EUA faz uma tentativa de matchmaking, mas não garante a localização.",
+    Text = "Os rótulos BR/EN são apenas informativos: a API pública não informa a região do servidor.\n"
+        .. "O botão English Server não consegue garantir uma região específica.",
     TextColor3 = Color3.fromRGB(210, 215, 225),
     TextSize = 11,
     TextWrapped = true,
@@ -1629,7 +1629,7 @@ BRButton.MouseButton1Click:Connect(function()
     runSearch("full", "servidor BR*")
 end)
 ENButton.MouseButton1Click:Connect(function()
-    runSearch("full", "servidor EUA*")
+    runSearch("full", "servidor EN*")
 end)
 RandomButton.MouseButton1Click:Connect(function()
     runSearch("random", "servidor aleatório")
