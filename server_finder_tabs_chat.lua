@@ -96,6 +96,20 @@ local function stroke(object, color, thickness, transparency)
     }, object)
 end
 
+local function styleButton(button, color, hoverColor)
+    button.AutoButtonColor = false
+    stroke(button, Color3.fromRGB(255, 255, 255), 1, 0.82)
+    button.MouseEnter:Connect(function()
+        if button.Active ~= false then
+            button.BackgroundColor3 = hoverColor or color
+        end
+    end)
+    button.MouseLeave:Connect(function()
+        button.BackgroundColor3 = color
+    end)
+    return button
+end
+
 local function clamp(value, minimum, maximum)
     return math.max(minimum, math.min(maximum, value))
 end
@@ -335,11 +349,18 @@ local Window = create("Frame", {
     Size = UDim2.fromOffset(BASE_WIDTH, BASE_HEIGHT),
     Position = UDim2.fromScale(0.5, 0.5),
     AnchorPoint = Vector2.new(0.5, 0.5),
-    BackgroundColor3 = Color3.fromRGB(18, 20, 28),
+    BackgroundColor3 = Color3.fromRGB(15, 18, 27),
     BorderSizePixel = 0,
 }, Gui)
 corner(Window, 14)
 stroke(Window, Color3.fromRGB(70, 82, 110), 1, 0.45)
+create("UIGradient", {
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(21, 27, 40)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(12, 15, 23)),
+    }),
+    Rotation = 90,
+}, Window)
 
 local WindowScale = create("UIScale", {
     Scale = 1,
@@ -404,14 +425,20 @@ end
 
 local Header = create("Frame", {
     Size = UDim2.new(1, 0, 0, 48),
-    BackgroundColor3 = Color3.fromRGB(29, 32, 44),
+    BackgroundColor3 = Color3.fromRGB(25, 30, 44),
     BorderSizePixel = 0,
 }, Window)
 corner(Header, 14)
 create("Frame", {
     Size = UDim2.new(1, 0, 0, 15),
     Position = UDim2.new(0, 0, 1, -15),
-    BackgroundColor3 = Color3.fromRGB(29, 32, 44),
+    BackgroundColor3 = Color3.fromRGB(25, 30, 44),
+    BorderSizePixel = 0,
+}, Header)
+create("Frame", {
+    Size = UDim2.new(1, -24, 0, 2),
+    Position = UDim2.fromOffset(12, 46),
+    BackgroundColor3 = Color3.fromRGB(75, 218, 225),
     BorderSizePixel = 0,
 }, Header)
 
@@ -425,7 +452,7 @@ local OwnerAvatar = create("ImageLabel", {
 corner(OwnerAvatar, 17)
 
 create("TextLabel", {
-    Size = UDim2.new(1, -120, 0, 23),
+    Size = UDim2.new(1, -235, 0, 23),
     Position = UDim2.fromOffset(56, 3),
     BackgroundTransparency = 1,
     Text = "SERVER FINDER",
@@ -436,7 +463,7 @@ create("TextLabel", {
 }, Header)
 
 create("TextLabel", {
-    Size = UDim2.new(1, -120, 0, 17),
+    Size = UDim2.new(1, -235, 0, 17),
     Position = UDim2.fromOffset(57, 25),
     BackgroundTransparency = 1,
     Text = IS_ADMIN and "admin • mateus_15600" or "by mateus_15600",
@@ -471,10 +498,22 @@ corner(Close, 7)
 local Sidebar = create("Frame", {
     Size = UDim2.new(0, 132, 1, -60),
     Position = UDim2.fromOffset(10, 56),
-    BackgroundColor3 = Color3.fromRGB(24, 26, 36),
+    BackgroundColor3 = Color3.fromRGB(20, 24, 35),
     BorderSizePixel = 0,
 }, Window)
 corner(Sidebar, 10)
+stroke(Sidebar, Color3.fromRGB(78, 93, 122), 1, 0.68)
+
+create("TextLabel", {
+    Size = UDim2.new(1, -16, 0, 15),
+    Position = UDim2.fromOffset(8, 4),
+    BackgroundTransparency = 1,
+    Text = "NAVEGAÇÃO",
+    TextColor3 = Color3.fromRGB(115, 190, 210),
+    TextSize = 9,
+    Font = Enum.Font.SourceSansBold,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, Sidebar)
 
 local Main = create("Frame", {
     Size = UDim2.new(1, -162, 1, -60),
@@ -521,9 +560,21 @@ local function makeTab(name, text, order, color)
         TextColor3 = Color3.fromRGB(215, 218, 230),
         TextSize = 13,
         Font = Enum.Font.SourceSansBold,
+        AutoButtonColor = false,
     }, Sidebar)
     button:SetAttribute("ActiveColor", color or Color3.fromRGB(0, 135, 190))
     corner(button, 8)
+    stroke(button, Color3.fromRGB(255, 255, 255), 1, 0.9)
+    button.MouseEnter:Connect(function()
+        if not button:GetAttribute("IsActive") then
+            button.BackgroundColor3 = Color3.fromRGB(54, 60, 79)
+        end
+    end)
+    button.MouseLeave:Connect(function()
+        if not button:GetAttribute("IsActive") then
+            button.BackgroundColor3 = Color3.fromRGB(40, 43, 57)
+        end
+    end)
     TabButtons[name] = button
     return button
 end
@@ -531,6 +582,7 @@ end
 local SearchPage = makePage("Buscar")
 local ChatPage = makePage("Chat")
 local ScriptsPage = makePage("Scripts")
+local InfoPage = makePage("Info")
 local AdminPage
 
 local SearchTab = makeTab("Buscar", "⌂  BUSCAR", 1)
@@ -542,12 +594,32 @@ if IS_ADMIN then
     AdminTab = makeTab("Admin", "⚙  ADMIN", 4, Color3.fromRGB(180, 120, 35))
 end
 
+local InfoTab = create("TextButton", {
+    Size = UDim2.fromOffset(52, 30),
+    Position = UDim2.new(1, -132, 0, 9),
+    BackgroundColor3 = Color3.fromRGB(42, 57, 75),
+    Text = "INFO",
+    TextColor3 = Color3.fromRGB(185, 240, 240),
+    TextSize = 11,
+    Font = Enum.Font.SourceSansBold,
+    AutoButtonColor = false,
+}, Header)
+corner(InfoTab, 7)
+stroke(InfoTab, Color3.fromRGB(95, 220, 225), 1, 0.35)
+InfoTab.MouseEnter:Connect(function()
+    InfoTab.BackgroundColor3 = Color3.fromRGB(55, 78, 94)
+end)
+InfoTab.MouseLeave:Connect(function()
+    InfoTab.BackgroundColor3 = Color3.fromRGB(42, 57, 75)
+end)
+
 local function showPage(name)
     for pageName, page in pairs(Pages) do
         page.Visible = pageName == name
     end
     for tabName, button in pairs(TabButtons) do
         local activeColor = button:GetAttribute("ActiveColor") or Color3.fromRGB(0, 135, 190)
+        button:SetAttribute("IsActive", tabName == name)
         button.BackgroundColor3 = tabName == name
             and activeColor
             or Color3.fromRGB(40, 43, 57)
@@ -562,6 +634,9 @@ ChatTab.MouseButton1Click:Connect(function()
 end)
 ScriptsTab.MouseButton1Click:Connect(function()
     showPage("Scripts")
+end)
+InfoTab.MouseButton1Click:Connect(function()
+    showPage("Info")
 end)
 if AdminTab then
     AdminTab.MouseButton1Click:Connect(function()
@@ -615,6 +690,11 @@ local function searchButton(text, position, color)
         Font = Enum.Font.SourceSansBold,
     }, SearchPage)
     corner(button, 9)
+    styleButton(button, color, Color3.fromRGB(
+        math.min(color.R * 1.16 + 0.03, 1),
+        math.min(color.G * 1.16 + 0.03, 1),
+        math.min(color.B * 1.16 + 0.03, 1)
+    ))
     return button
 end
 
@@ -929,6 +1009,108 @@ end)
 SuggestClear.MouseButton1Click:Connect(function()
     sendChat("Limpar conversa")
 end)
+
+-- Página Info, acessível pelo botão no topo.
+create("TextLabel", {
+    Size = UDim2.new(1, 0, 0, 34),
+    BackgroundTransparency = 1,
+    Text = "Sobre o Server Finder",
+    TextColor3 = Color3.fromRGB(245, 248, 255),
+    TextSize = 20,
+    Font = Enum.Font.SourceSansBold,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, InfoPage)
+
+create("TextLabel", {
+    Size = UDim2.new(1, 0, 0, 32),
+    Position = UDim2.fromOffset(0, 34),
+    BackgroundTransparency = 1,
+    Text = "Tudo o que você precisa saber antes de iniciar uma busca.",
+    TextColor3 = Color3.fromRGB(155, 190, 205),
+    TextSize = 12,
+    Font = Enum.Font.SourceSans,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, InfoPage)
+
+local InfoCard = create("Frame", {
+    Size = UDim2.new(1, 0, 0, 128),
+    Position = UDim2.fromOffset(0, 78),
+    BackgroundColor3 = Color3.fromRGB(25, 31, 45),
+    BorderSizePixel = 0,
+}, InfoPage)
+corner(InfoCard, 10)
+stroke(InfoCard, Color3.fromRGB(70, 191, 210), 1, 0.68)
+
+create("TextLabel", {
+    Size = UDim2.new(1, -28, 0, 25),
+    Position = UDim2.fromOffset(14, 12),
+    BackgroundTransparency = 1,
+    Text = "Como usar",
+    TextColor3 = Color3.fromRGB(120, 230, 220),
+    TextSize = 15,
+    Font = Enum.Font.SourceSansBold,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, InfoCard)
+
+create("TextLabel", {
+    Size = UDim2.new(1, -28, 0, 78),
+    Position = UDim2.fromOffset(14, 39),
+    BackgroundTransparency = 1,
+    Text = "• Buscar: escolha uma estratégia para encontrar outro servidor.\n"
+        .. "• Chat bot: converse com a NOVA ou peça uma busca por texto.\n"
+        .. "• INFO: volte aqui para consultar recursos e avisos.",
+    TextColor3 = Color3.fromRGB(215, 222, 235),
+    TextSize = 12,
+    TextWrapped = true,
+    Font = Enum.Font.SourceSans,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    TextYAlignment = Enum.TextYAlignment.Top,
+}, InfoCard)
+
+local InfoNotice = create("Frame", {
+    Size = UDim2.new(1, 0, 0, 88),
+    Position = UDim2.fromOffset(0, 218),
+    BackgroundColor3 = Color3.fromRGB(29, 34, 47),
+    BorderSizePixel = 0,
+}, InfoPage)
+corner(InfoNotice, 10)
+stroke(InfoNotice, Color3.fromRGB(220, 178, 82), 1, 0.72)
+
+create("TextLabel", {
+    Size = UDim2.new(1, -28, 0, 22),
+    Position = UDim2.fromOffset(14, 11),
+    BackgroundTransparency = 1,
+    Text = "Aviso importante",
+    TextColor3 = Color3.fromRGB(255, 215, 125),
+    TextSize = 14,
+    Font = Enum.Font.SourceSansBold,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, InfoNotice)
+
+create("TextLabel", {
+    Size = UDim2.new(1, -28, 0, 44),
+    Position = UDim2.fromOffset(14, 34),
+    BackgroundTransparency = 1,
+    Text = "Os rótulos BR/EN são apenas informativos: a API pública não informa o idioma do servidor.\n"
+        .. "A aba Admin aparece somente para o usuário autorizado.",
+    TextColor3 = Color3.fromRGB(210, 215, 225),
+    TextSize = 11,
+    TextWrapped = true,
+    Font = Enum.Font.SourceSans,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    TextYAlignment = Enum.TextYAlignment.Top,
+}, InfoNotice)
+
+local InfoVersion = create("TextLabel", {
+    Size = UDim2.new(1, 0, 0, 24),
+    Position = UDim2.new(0, 0, 1, -28),
+    BackgroundTransparency = 1,
+    Text = "Server Finder  •  " .. GUARD_VERSION .. "  •  interface responsiva",
+    TextColor3 = Color3.fromRGB(120, 145, 170),
+    TextSize = 11,
+    Font = Enum.Font.SourceSans,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, InfoPage)
 
 -- Aba Admin: ela nem é criada para outros usuários.
 local AdminStatus
