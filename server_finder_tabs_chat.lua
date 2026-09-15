@@ -76,6 +76,7 @@ local destroyed = false
 local creatorUserId
 local followUnlocked = false
 local followChecking = false
+local followGateVisible = true
 local currentScale = 1
 local manualScale = 1
 local SearchStatus
@@ -1658,6 +1659,21 @@ local Loading = create("Frame", {
 corner(Loading, 14)
 stroke(Loading, Color3.fromRGB(0, 190, 230), 1, 0.35)
 
+-- O overlay cobre o cabeçalho; este X mantém a tela fechável durante a verificação.
+local LoadingClose = create("TextButton", {
+    Size = UDim2.fromOffset(30, 30),
+    Position = UDim2.new(1, -42, 0, 10),
+    BackgroundColor3 = Color3.fromRGB(190, 55, 65),
+    BorderSizePixel = 0,
+    Text = "×",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextSize = 20,
+    Font = Enum.Font.SourceSansBold,
+    ZIndex = 55,
+}, Loading)
+corner(LoadingClose, 7)
+styleButton(LoadingClose, Color3.fromRGB(190, 55, 65), Color3.fromRGB(225, 70, 80))
+
 local LoadingAccent = create("Frame", {
     Size = UDim2.new(0, 4, 1, -84),
     Position = UDim2.fromOffset(24, 42),
@@ -1844,6 +1860,9 @@ local loadingFinishing = false
 
 local function hideLoading(instant)
     if Loading and Loading.Parent then
+        if followGateVisible and not followUnlocked and not instant then
+            return
+        end
         if instant then
             loadingFinishing = false
             Loading.Visible = false
@@ -1869,6 +1888,9 @@ local function hideLoading(instant)
 end
 
 local function showLoading(text)
+    if followGateVisible and not followUnlocked then
+        return
+    end
     loadingMessage = text or "Processando..."
     LoadingDetail.Text = loadingMessage
     LoadingTitle.Text = "Aguarde um momento..."
@@ -1987,32 +2009,75 @@ local function queryCreatorFollow()
     return result
 end
 
+local function lockFollowGate(statusText)
+    followUnlocked = false
+    followGateVisible = true
+    if not Loading or not Loading.Parent then
+        return
+    end
+
+    loadingFinishing = false
+    Loading.Visible = true
+    LoadingClose.Visible = true
+    loadingProgress = 0.08
+    LoadingBarFill.Size = UDim2.new(loadingProgress, 0, 1, 0)
+    LoadingTitle.Text = "Follow necessário"
+    LoadingDetail.Text = "Siga @" .. CREATOR_USERNAME .. " para continuar."
+    LoadingHint.Text = "O painel será liberado automaticamente quando o follow for confirmado."
+    FollowStatus.Text = statusText or "Siga @" .. CREATOR_USERNAME .. " para liberar o script."
+    FollowStatus.TextColor3 = Color3.fromRGB(255, 215, 125)
+    FollowOpen.Visible = true
+    FollowCheck.Visible = true
+    FollowOpen.Active = true
+    FollowCheck.Active = true
+    LoadingContinue.Visible = false
+end
+
 local function unlockFollowGate()
+    local shouldHide = followGateVisible
     followUnlocked = true
+    followGateVisible = false
     followChecking = false
-    FollowStatus.Text = "✓ Follow confirmado. O script foi liberado."
+    FollowStatus.Text = "✓ Follow confirmado. O painel foi liberado."
     FollowStatus.TextColor3 = Color3.fromRGB(145, 240, 180)
     FollowOpen.Visible = false
     FollowCheck.Visible = false
-    LoadingContinue.Visible = true
+    LoadingContinue.Visible = false
+    LoadingClose.Visible = true
     LoadingTitle.Text = "Acesso liberado!"
     LoadingDetail.Text = "Obrigado por seguir o criador."
-    LoadingHint.Text = "Clique em ENTRAR AGORA para abrir o painel."
+    LoadingHint.Text = "Abrindo o painel automaticamente..."
     LoadingBarFill.Size = UDim2.new(1, 0, 1, 0)
+
+    if shouldHide then
+        task.spawn(function()
+            task.wait(0.25)
+            if not destroyed and Loading.Parent then
+                hideLoading(true)
+            end
+        end)
+    end
 end
 
-local function checkFollowGate()
-    if destroyed or followChecking or followUnlocked then
+local function checkFollowGate(silent)
+    if destroyed or followChecking then
+        return
+    end
+    if followUnlocked and not silent then
         return
     end
 
     followChecking = true
-    LoadingTitle.Text = "Verificando follow..."
-    LoadingDetail.Text = "Consultando o perfil do criador."
-    FollowStatus.Text = "Aguarde, verificando..."
-    FollowStatus.TextColor3 = Color3.fromRGB(225, 210, 110)
-    FollowOpen.Active = false
-    FollowCheck.Active = false
+    if not silent or not followUnlocked then
+        Loading.Visible = true
+        LoadingClose.Visible = true
+        LoadingTitle.Text = "Verificando follow..."
+        LoadingDetail.Text = "Consultando o perfil do criador."
+        FollowStatus.Text = "Aguarde, verificando..."
+        FollowStatus.TextColor3 = Color3.fromRGB(225, 210, 110)
+        FollowOpen.Active = false
+        FollowCheck.Active = false
+    end
 
     task.spawn(function()
         local ok, isFollowing = pcall(queryCreatorFollow)
@@ -2021,23 +2086,23 @@ local function checkFollowGate()
         end
 
         followChecking = false
-        FollowOpen.Active = true
-        FollowCheck.Active = true
-
         if ok and isFollowing == true then
             unlockFollowGate()
             return
         end
 
         if ok and isFollowing == false then
-            FollowStatus.Text = "Ainda não encontrei o follow. Siga o criador e tente novamente."
-            FollowStatus.TextColor3 = Color3.fromRGB(255, 215, 125)
-        else
+            lockFollowGate("Ainda não encontrei o follow. Siga o criador; o painel abrirá sozinho quando confirmar.")
+        elseif not followUnlocked then
+            Loading.Visible = true
+            LoadingClose.Visible = true
+            FollowOpen.Active = true
+            FollowCheck.Active = true
             FollowStatus.Text = "Não foi possível verificar agora. Confira se o executor permite HTTP."
             FollowStatus.TextColor3 = Color3.fromRGB(240, 130, 130)
+            LoadingTitle.Text = "Follow necessário"
+            LoadingDetail.Text = "Siga @" .. CREATOR_USERNAME .. " para continuar."
         end
-        LoadingTitle.Text = "Follow necessário"
-        LoadingDetail.Text = "Siga @" .. CREATOR_USERNAME .. " para continuar."
     end)
 end
 
@@ -2076,6 +2141,23 @@ LoadingContinue.MouseButton1Click:Connect(function()
         hideLoading(true)
     else
         checkFollowGate()
+    end
+end)
+
+LoadingClose.MouseButton1Click:Connect(function()
+    destroyed = true
+    if Gui and Gui.Parent then
+        Gui:Destroy()
+    end
+end)
+
+-- Mantém o estado sincronizado: seguir libera sozinho; deixar de seguir mostra o bloqueio.
+task.spawn(function()
+    while not destroyed do
+        task.wait(8)
+        if not destroyed then
+            checkFollowGate(true)
+        end
     end
 end)
 
