@@ -62,14 +62,18 @@ local Config = {
     userName = Player.DisplayName or Player.Name,
     blacklistTime = 300,
     maxPages = 5,
+    maxRegionChecks = 40,
+    regionCacheTime = 600,
 }
 
 local blacklist = {}
+local regionCache = {}
 local searching = false
 local teleportFailed = false
 local destroyed = false
 local currentScale = 1
 local manualScale = 1
+local SearchStatus
 
 local function create(className, properties, parent)
     local object = Instance.new(className)
@@ -215,6 +219,16 @@ local function httpRequest(url, method, body)
     error("Resposta HTTP inválida.")
 end
 
+local function decodeJson(body, message)
+    local ok, data = pcall(function()
+        return HttpService:JSONDecode(body)
+    end)
+    if not ok or type(data) ~= "table" then
+        error(message or "Resposta JSON inválida.")
+    end
+    return data
+end
+
 local function getServers(cursor)
     local url = "https://games.roblox.com/v1/games/"
         .. PLACE_ID
@@ -230,9 +244,9 @@ local function getServers(cursor)
         end)
         if ok and body then
             local decoded, data = pcall(function()
-                return HttpService:JSONDecode(body)
+                return decodeJson(body)
             end)
-            if decoded and type(data) == "table" and type(data.data) == "table" then
+            if decoded and type(data.data) == "table" then
                 return data
             end
         end
@@ -294,27 +308,159 @@ local function collectServers()
     return result
 end
 
-local function chooseServer(mode)
-    local servers = collectServers()
-    if #servers == 0 then
+local function isIpAddress(value)
+    if type(value) ~= "string" then
+        return false
+    end
+    local a, b, c, d = value:match("^(%d+)%.(%d+)%.(%d+)%.(%d+)$")
+    return a
+        and tonumber(a) <= 255
+        and tonumber(b) <= 255
+        and tonumber(c) <= 255
+        and tonumber(d) <= 255
+end
+
+local function getServerIp(server)
+    local body = httpRequest(
+        "https://gamejoin.roblox.com/v1/join-game-instance",
+        "POST",
+        HttpService:JSONEncode({
+            placeId = PLACE_ID,
+            gameId = server.id,
+            isTeleport = false,
+        })
+    )
+    local data = decodeJson(body, "A API de região retornou um JSON inválido.")
+    local joinScript = data.joinScript
+    if type(joinScript) ~= "table" then
         return nil
     end
 
+    local endpoints = joinScript.UdmuxEndpoints
+    if type(endpoints) == "table" then
+        for _, endpoint in ipairs(endpoints) do
+            local address = type(endpoint) == "table" and endpoint.Address
+            if isIpAddress(address) then
+                return address
+            end
+        end
+    end
+
+    if isIpAddress(joinScript.MachineAddress) then
+        return joinScript.MachineAddress
+    end
+    return nil
+end
+
+local function lookupIpRegion(ip)
+    local urls = {
+        "https://ipwho.is/" .. tostring(ip),
+        "http://ip-api.com/json/" .. tostring(ip)
+            .. "?fields=status,countryCode,country,city",
+    }
+
+    for _, url in ipairs(urls) do
+        local ok, body = pcall(function()
+            return httpGet(url)
+        end)
+        if ok and body then
+            local decoded, data = pcall(function()
+                return decodeJson(body)
+            end)
+            if decoded and type(data) == "table" then
+                local countryCode = data.country_code or data.countryCode
+                local country = data.country
+                if data.success ~= false and data.status ~= "fail" and countryCode then
+                    return {
+                        countryCode = string.upper(tostring(countryCode)),
+                        country = tostring(country or countryCode),
+                        city = tostring(data.city or ""),
+                    }
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function getServerRegion(server)
+    local cached = regionCache[server.id]
+    if cached and os.time() - cached.time < Config.regionCacheTime then
+        return cached.region
+    end
+
+    local ok, region = pcall(function()
+        local ip = getServerIp(server)
+        if not ip then
+            return nil
+        end
+        return lookupIpRegion(ip)
+    end)
+    if not ok then
+        region = nil
+    end
+
+    regionCache[server.id] = {
+        time = os.time(),
+        region = region,
+    }
+    return region
+end
+
+local function serverScore(server, mode)
+    local playing = tonumber(server.playing) or 0
+    local maximum = tonumber(server.maxPlayers) or 1
+    local free = maximum - playing
+    local occupancy = playing / math.max(1, maximum)
+    local score = occupancy * 1000 - free
+
+    if mode == "full" and (playing < 6 or free < 2) then
+        return -math.huge
+    end
+    return score
+end
+
+local function chooseServer(mode)
+    local servers = collectServers()
+    if #servers == 0 then
+        return nil, "Nenhum servidor disponível foi encontrado."
+    end
+
+    if mode == "brazil" then
+        local brazilServers = {}
+        local checked = 0
+        for _, server in ipairs(servers) do
+            if checked >= Config.maxRegionChecks then
+                break
+            end
+            checked = checked + 1
+            setStatus(
+                SearchStatus,
+                "Localizando servidores brasileiros... " .. checked .. "/" .. Config.maxRegionChecks,
+                Color3.fromRGB(225, 210, 110)
+            )
+            local region = getServerRegion(server)
+            if region and region.countryCode == "BR" then
+                table.insert(brazilServers, server)
+            end
+            task.wait(0.05)
+        end
+        if #brazilServers == 0 then
+            return nil,
+                "Não encontrei um servidor brasileiro. A API de região pode estar bloqueada ou sem resultados."
+        end
+        servers = brazilServers
+    end
+
     if mode == "random" then
-        return servers[math.random(1, #servers)]
+        return servers[math.random(1, #servers)], nil
     end
 
     local selected
     local bestScore = -math.huge
 
     for _, server in ipairs(servers) do
-        local free = server.maxPlayers - server.playing
-        local occupancy = server.playing / server.maxPlayers
-        local score = occupancy * 1000 - free
-
-        if mode == "full" and (server.playing < 6 or free < 2) then
-            score = -math.huge
-        end
+        local score = serverScore(server, mode)
 
         if score > bestScore then
             selected = server
@@ -322,7 +468,7 @@ local function chooseServer(mode)
         end
     end
 
-    return selected or servers[1]
+    return selected or servers[1], nil
 end
 
 -- Localização da GUI.
@@ -674,7 +820,7 @@ create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 36),
     Position = UDim2.fromOffset(16, 49),
     BackgroundTransparency = 1,
-    Text = "Escolha uma estratégia. BR/EN são rótulos; a API não informa a região do servidor.",
+    Text = "BR verifica a região antes de teleportar; aleatório usa a lista pública do Roblox.",
     TextColor3 = Color3.fromRGB(165, 170, 190),
     TextSize = 12,
     TextWrapped = true,
@@ -682,7 +828,7 @@ create("TextLabel", {
     TextXAlignment = Enum.TextXAlignment.Left,
 }, SearchPage)
 
-local SearchStatus = create("TextLabel", {
+SearchStatus = create("TextLabel", {
     Size = UDim2.new(1, 0, 0, 48),
     Position = UDim2.new(0, 0, 1, -58),
     BackgroundColor3 = Color3.fromRGB(28, 31, 42),
@@ -714,7 +860,7 @@ local function searchButton(text, position, color)
     return button
 end
 
-local BRButton = searchButton("Servidor BR*", UDim2.fromOffset(0, 88), Color3.fromRGB(0, 145, 75))
+local BRButton = searchButton("Servidor BR", UDim2.fromOffset(0, 88), Color3.fromRGB(0, 145, 75))
 local ENButton = searchButton("English Server", UDim2.fromOffset(220, 94), Color3.fromRGB(65, 70, 88))
 disableButton(ENButton, Color3.fromRGB(65, 70, 88))
 create("TextLabel", {
@@ -1119,7 +1265,7 @@ local function answer(rawMessage)
     end
     if hasAny(text, {"idioma", "brasil", "br", "english", "inglês"}) then
         ChatState.lastIntent = "language"
-        return "O botão English Server está desativado porque a API pública não informa a região do servidor."
+        return "O botão Servidor BR verifica a região por uma API de junção do Roblox. Se o executor bloquear POST, ele avisa em vez de mandar você para uma região aleatória."
     end
     if hasAny(text, {"servidor aleatório", "servidor aleatorio", "qualquer servidor"}) then
         ChatState.lastIntent = "search"
@@ -1518,7 +1664,7 @@ corner(LoadingAccent, 3)
 
 local LoadingAvatar = create("ImageLabel", {
     Size = UDim2.fromOffset(76, 76),
-    Position = UDim2.new(0.5, -38, 0.18, 0),
+    Position = UDim2.new(0.5, -38, 0, 54),
     BackgroundColor3 = Color3.fromRGB(35, 40, 58),
     BorderSizePixel = 0,
     Image = "",
@@ -1529,7 +1675,7 @@ local LoadingAvatarStroke = stroke(LoadingAvatar, Color3.fromRGB(0, 190, 230), 2
 
 local LoadingBrand = create("TextLabel", {
     Size = UDim2.new(1, -80, 0, 24),
-    Position = UDim2.new(0, 40, 0.18, 86),
+    Position = UDim2.new(0, 40, 0, 140),
     BackgroundTransparency = 1,
     Text = "SERVER FINDER",
     TextColor3 = Color3.fromRGB(245, 248, 255),
@@ -1541,7 +1687,7 @@ local LoadingBrand = create("TextLabel", {
 
 create("TextLabel", {
     Size = UDim2.new(1, -80, 0, 18),
-    Position = UDim2.new(0, 40, 0.18, 110),
+    Position = UDim2.new(0, 40, 0, 165),
     BackgroundTransparency = 1,
     Text = "by mateus_15600",
     TextColor3 = Color3.fromRGB(120, 220, 220),
@@ -1553,7 +1699,7 @@ create("TextLabel", {
 
 local LoadingTitle = create("TextLabel", {
     Size = UDim2.new(1, -80, 0, 32),
-    Position = UDim2.new(0, 40, 0.53, 0),
+    Position = UDim2.new(0, 40, 0, 208),
     BackgroundTransparency = 1,
     Text = "Preparando seu painel...",
     TextColor3 = Color3.fromRGB(240, 240, 250),
@@ -1565,7 +1711,7 @@ local LoadingTitle = create("TextLabel", {
 
 local LoadingDetail = create("TextLabel", {
     Size = UDim2.new(1, -80, 0, 24),
-    Position = UDim2.new(0, 40, 0.64, 0),
+    Position = UDim2.new(0, 40, 0, 248),
     BackgroundTransparency = 1,
     Text = "Ajustando a interface à sua tela...",
     TextColor3 = Color3.fromRGB(175, 180, 200),
@@ -1577,7 +1723,7 @@ local LoadingDetail = create("TextLabel", {
 
 local LoadingBarBack = create("Frame", {
     Size = UDim2.new(0, 300, 0, 7),
-    Position = UDim2.new(0.5, -150, 0.74, 0),
+    Position = UDim2.new(0.5, -150, 0, 294),
     BackgroundColor3 = Color3.fromRGB(37, 44, 62),
     BorderSizePixel = 0,
     ZIndex = 51,
@@ -1600,7 +1746,7 @@ create("UIGradient", {
 
 local LoadingHint = create("TextLabel", {
     Size = UDim2.new(1, -80, 0, 18),
-    Position = UDim2.new(0, 40, 0.78, 0),
+    Position = UDim2.new(0, 40, 0, 316),
     BackgroundTransparency = 1,
     Text = "O loading fecha sozinho em alguns segundos.",
     TextColor3 = Color3.fromRGB(125, 135, 160),
@@ -1612,7 +1758,7 @@ local LoadingHint = create("TextLabel", {
 
 local LoadingContinue = create("TextButton", {
     Size = UDim2.fromOffset(150, 32),
-    Position = UDim2.new(0.5, -75, 0.87, 0),
+    Position = UDim2.new(0.5, -75, 0, 354),
     BackgroundColor3 = Color3.fromRGB(0, 135, 190),
     BorderSizePixel = 0,
     Text = "ENTRAR AGORA",
@@ -1699,7 +1845,6 @@ loadingConnection = RunService.RenderStepped:Connect(function(delta)
     if Loading.Visible and not loadingFinishing then
         loadingProgress = math.min(1, loadingProgress + delta * 0.18)
         LoadingBarFill.Size = UDim2.new(loadingProgress, 0, 1, 0)
-        LoadingAvatar.Rotation = (LoadingAvatar.Rotation + delta * 18) % 360
         LoadingTitle.Text = "Preparando seu painel" .. string.rep(".", math.floor(os.clock() * 2) % 4)
     end
 end)
@@ -1829,6 +1974,7 @@ runSearch = function(mode, label)
     task.spawn(function()
         local connected = false
         local cancelled = false
+        local failureMessage
         for attempt = 1, 5 do
             if destroyed then
                 break
@@ -1838,7 +1984,7 @@ runSearch = function(mode, label)
                 label .. " • tentativa " .. attempt .. "/5",
                 Color3.fromRGB(225, 210, 110)
             )
-            local server = chooseServer(mode)
+            local server, selectionError = chooseServer(mode)
             if server then
                 setStatus(
                     SearchStatus,
@@ -1857,6 +2003,12 @@ runSearch = function(mode, label)
                     break
                 end
             else
+                failureMessage = selectionError
+                setStatus(
+                    SearchStatus,
+                    failureMessage or "Não foi possível encontrar um servidor.",
+                    Color3.fromRGB(240, 130, 130)
+                )
                 break
             end
             task.wait(1)
@@ -1865,13 +2017,17 @@ runSearch = function(mode, label)
         searching = false
         hideLoading()
         if not connected and not cancelled then
-            setStatus(SearchStatus, "Não foi possível trocar de servidor.", Color3.fromRGB(240, 130, 130))
+            setStatus(
+                SearchStatus,
+                failureMessage or "Não foi possível trocar de servidor.",
+                Color3.fromRGB(240, 130, 130)
+            )
         end
     end)
 end
 
 BRButton.MouseButton1Click:Connect(function()
-    runSearch("full", "servidor BR*")
+    runSearch("brazil", "servidor BR")
 end)
 RandomButton.MouseButton1Click:Connect(function()
     runSearch("random", "servidor aleatório")
@@ -1961,11 +2117,7 @@ addMessage(Config.botName, "Olá, " .. Config.userName .. ". A interface foi aju
 
 task.spawn(function()
     task.wait(1.8)
-    hideLoading()
-end)
-
-task.delay(5, function()
-    if not destroyed then
+    if not destroyed and not searching then
         hideLoading()
     end
 end)
