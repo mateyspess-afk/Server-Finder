@@ -64,7 +64,7 @@ local Config = {
     userName = Player.DisplayName or Player.Name,
     blacklistTime = 300,
     maxPages = 5,
-    maxRegionChecks = 40,
+    maxRegionChecks = 15,
     regionCacheTime = 600,
 }
 
@@ -667,29 +667,13 @@ create("TextLabel", {
 local Minimize = create("TextButton", {
     Size = UDim2.fromOffset(30, 30),
     Position = UDim2.new(1, -72, 0, 9),
-    BackgroundColor3 = Color3.fromRGB(132, 96, 28),
+    BackgroundColor3 = Color3.fromRGB(75, 80, 100),
     Text = "—",
-    TextColor3 = Color3.fromRGB(255, 246, 210),
+    TextColor3 = Color3.fromRGB(255, 255, 255),
     TextSize = 18,
     Font = Enum.Font.SourceSansBold,
 }, Header)
 corner(Minimize, 7)
-styleButton(Minimize, Color3.fromRGB(132, 96, 28), Color3.fromRGB(182, 137, 42))
-
-local MinimizedBadge = create("TextLabel", {
-    Size = UDim2.fromOffset(112, 22),
-    Position = UDim2.new(1, -196, 0, 13),
-    BackgroundColor3 = Color3.fromRGB(55, 40, 16),
-    BackgroundTransparency = 0.08,
-    BorderSizePixel = 0,
-    Text = "✦  MINI HUB  •  ATIVO",
-    TextColor3 = Color3.fromRGB(255, 220, 125),
-    TextSize = 10,
-    Font = Enum.Font.SourceSansBold,
-    Visible = false,
-}, Header)
-corner(MinimizedBadge, 8)
-stroke(MinimizedBadge, Color3.fromRGB(223, 169, 58), 1, 0.35)
 
 local Close = create("TextButton", {
     Size = UDim2.fromOffset(30, 30),
@@ -1941,6 +1925,11 @@ local function showLoading(text)
     LoadingDetail.Text = loadingMessage
     LoadingTitle.Text = "Aguarde um momento..."
     LoadingHint.Text = "Você pode continuar e fechar esta tela quando quiser."
+    -- Busca e teleporte usam a mesma camada visual, mas não devem parecer a tela de follow.
+    FollowStatus.Visible = false
+    FollowOpen.Visible = false
+    FollowCheck.Visible = false
+    LoadingContinue.Visible = false
     loadingFinishing = false
     loadingProgress = 0.08
     LoadingBarFill.Size = UDim2.new(loadingProgress, 0, 1, 0)
@@ -2052,6 +2041,7 @@ local function lockFollowGate(statusText)
     LoadingTitle.Text = "Follow necessário"
     LoadingDetail.Text = "Siga @" .. CREATOR_USERNAME .. " para continuar."
     LoadingHint.Text = "O painel será liberado automaticamente quando o follow for confirmado."
+    FollowStatus.Visible = true
     FollowStatus.Text = statusText or "Siga @" .. CREATOR_USERNAME .. " para liberar o script."
     FollowStatus.TextColor3 = Color3.fromRGB(255, 215, 125)
     FollowOpen.Visible = true
@@ -2121,6 +2111,9 @@ local function checkFollowGate(silent)
         end
 
         if ok and isFollowing == false then
+            if searching and followUnlocked then
+                return
+            end
             lockFollowGate("Ainda não encontrei o follow. Siga o criador; o painel abrirá sozinho quando confirmar.")
         elseif not followUnlocked then
             Loading.Visible = true
@@ -2184,7 +2177,7 @@ end)
 task.spawn(function()
     while not destroyed do
         task.wait(8)
-        if not destroyed then
+        if not destroyed and not searching then
             checkFollowGate(true)
         end
     end
@@ -2463,18 +2456,9 @@ Minimize.MouseButton1Click:Connect(function()
     minimized = not minimized
     Sidebar.Visible = not minimized
     Main.Visible = not minimized
-    ResizeGrip.Visible = not minimized
-    MinimizedBadge.Visible = minimized
     Window.Size = minimized
-        and UDim2.new(0, 390, 0, 52)
+        and UDim2.new(0, 720, 0, 48)
         or UDim2.new(0, 720, 0, 460)
-    Window.BackgroundColor3 = minimized
-        and Color3.fromRGB(25, 20, 12)
-        or Color3.fromRGB(15, 18, 27)
-    Header.BackgroundColor3 = minimized
-        and Color3.fromRGB(34, 27, 15)
-        or Color3.fromRGB(25, 30, 44)
-    HubTitle.TextSize = minimized and 14 or 16
     Minimize.Text = minimized and "+" or "—"
     applyResponsiveScale()
     clampWindowToViewport()
