@@ -64,7 +64,7 @@ local Config = {
     userName = Player.DisplayName or Player.Name,
     blacklistTime = 300,
     maxPages = 5,
-    maxRegionChecks = 20,
+    maxRegionChecks = 15,
     regionCacheTime = 600,
 }
 
@@ -238,13 +238,10 @@ local function decodeJson(body, message)
     return data
 end
 
-local function getServers(cursor, sortOrder)
-    local order = sortOrder == "Asc" and "Asc" or "Desc"
+local function getServers(cursor)
     local url = "https://games.roblox.com/v1/games/"
         .. PLACE_ID
-        .. "/servers/Public?sortOrder="
-        .. order
-        .. "&limit=100"
+        .. "/servers/Public?sortOrder=Desc&limit=100"
 
     if cursor and cursor ~= "" then
         url = url .. "&cursor=" .. urlEncode(cursor)
@@ -288,7 +285,7 @@ local function isAvailable(server)
     return true
 end
 
-local function collectServers(maxPages, sortOrder)
+local function collectServers(maxPages)
     local result = {}
     local known = {}
     local cursor = ""
@@ -299,7 +296,7 @@ local function collectServers(maxPages, sortOrder)
             return {}
         end
 
-        local data = getServers(cursor, sortOrder)
+        local data = getServers(cursor)
         if not data then
             break
         end
@@ -345,14 +342,6 @@ local function getServerIp(server)
     )
     local data = decodeJson(body, "A API de região retornou um JSON inválido.")
     local joinScript = data.joinScript
-    if type(joinScript) == "string" then
-        local ok, decoded = pcall(function()
-            return HttpService:JSONDecode(joinScript)
-        end)
-        if ok then
-            joinScript = decoded
-        end
-    end
     if type(joinScript) ~= "table" then
         return nil
     end
@@ -360,20 +349,15 @@ local function getServerIp(server)
     local endpoints = joinScript.UdmuxEndpoints
     if type(endpoints) == "table" then
         for _, endpoint in ipairs(endpoints) do
-            local address = type(endpoint) == "table"
-                and (endpoint.Address or endpoint.address or endpoint.Ip or endpoint.ip)
+            local address = type(endpoint) == "table" and endpoint.Address
             if isIpAddress(address) then
                 return address
             end
         end
     end
 
-    local machineAddress = joinScript.MachineAddress
-        or joinScript.machineAddress
-        or joinScript.ServerIp
-        or joinScript.serverIp
-    if isIpAddress(machineAddress) then
-        return machineAddress
+    if isIpAddress(joinScript.MachineAddress) then
+        return joinScript.MachineAddress
     end
     return nil
 end
@@ -455,43 +439,16 @@ local function serverScore(server, mode)
     return score
 end
 
-local function largestServer(servers)
-    local selected
-    local bestScore = -math.huge
-
-    for _, server in ipairs(servers) do
-        local playing = tonumber(server.playing) or 0
-        local free = math.max(0, (tonumber(server.maxPlayers) or 0) - playing)
-        local ping = tonumber(server.ping)
-        -- A quantidade de jogadores é a prioridade. O ping só desempata
-        -- servidores com tamanho semelhante.
-        local score = playing * 10000 - free * 100
-        if ping then
-            score = score - ping
-        end
-        if score > bestScore then
-            selected = server
-            bestScore = score
-        end
-    end
-
-    return selected or servers[1]
-end
-
 local function chooseServer(mode)
-    local isBrazil = mode == "brazil"
-    local servers = collectServers(
-        isBrazil and Config.maxPages or nil,
-        "Desc"
-    )
+    local servers = collectServers(mode == "brazil" and 1 or nil)
     if #servers == 0 then
         return nil, "Nenhum servidor disponível foi encontrado."
     end
 
-    if isBrazil then
-        -- O Roblox pode bloquear a consulta de região entre duas tentativas.
-        -- Cada busca deve começar limpa para não ficar presa no erro anterior.
-        regionApiUnavailable = false
+    if mode == "brazil" then
+        if regionApiUnavailable then
+            return nil, "A API de região do Roblox bloqueou a consulta. O executor precisa permitir essa consulta autenticada; o servidor BR não pode ser confirmado com segurança."
+        end
         local brazilServers = {}
         local checked = 0
         for _, server in ipairs(servers) do
@@ -499,7 +456,7 @@ local function chooseServer(mode)
                 break
             end
             if regionApiUnavailable then
-                break
+                return nil, "A API de região do Roblox bloqueou a consulta. O servidor BR não pode ser confirmado com segurança."
             end
             checked = checked + 1
             setStatus(
@@ -514,15 +471,8 @@ local function chooseServer(mode)
             task.wait(0.05)
         end
         if #brazilServers == 0 then
-            -- O endpoint de região passou a exigir autenticação em muitos
-            -- executores. Escolha o servidor mais cheio para manter o objetivo
-            -- do botão; o ping só serve como desempate.
-            local fallback = largestServer(servers)
-            if fallback then
-                fallback.regionFallback = true
-                return fallback, nil
-            end
-            return nil, "Não encontrei um servidor brasileiro disponível."
+            return nil,
+                "Não encontrei um servidor brasileiro. A API de região pode estar bloqueada ou sem resultados."
         end
         servers = brazilServers
     end
@@ -2411,22 +2361,12 @@ runSearch = function(mode, label)
             )
             local server, selectionError = chooseServer(mode)
             if server then
-                local regionNote = server.regionFallback
-                    and " • região não confirmada, servidor mais cheio"
-                    or ""
                 setStatus(
                     SearchStatus,
-                    "Selecionado: "
-                        .. server.playing
-                        .. "/"
-                        .. server.maxPlayers
-                        .. regionNote,
+                    "Selecionado: " .. server.playing .. "/" .. server.maxPlayers,
                     Color3.fromRGB(165, 215, 240)
                 )
-                local teleportContext = server.regionFallback
-                    and label .. " (servidor mais cheio; região não confirmada)"
-                    or label
-                if askTeleportConfirmation(server, teleportContext) then
+                if askTeleportConfirmation(server, label) then
                     showLoading("Conectando ao servidor...")
                     if teleport(server) then
                         connected = true
@@ -2462,7 +2402,7 @@ runSearch = function(mode, label)
 end
 
 BRButton.MouseButton1Click:Connect(function()
-    runSearch("brazil", "servidor BR")
+    runSearch("full", "servidor BR*")
 end)
 RandomButton.MouseButton1Click:Connect(function()
     runSearch("random", "servidor aleatório")
