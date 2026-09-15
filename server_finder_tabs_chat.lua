@@ -809,6 +809,100 @@ local VerifiedStatus = create("TextLabel", {
     ZIndex = 21,
 }, VerifiedPopup)
 
+local TeleportConfirmPopup = create("Frame", {
+    Size = UDim2.fromOffset(410, 210),
+    Position = UDim2.new(0.5, -205, 0.5, -105),
+    BackgroundColor3 = Color3.fromRGB(29, 32, 44),
+    BorderSizePixel = 0,
+    Visible = false,
+    ZIndex = 60,
+}, Window)
+corner(TeleportConfirmPopup, 12)
+stroke(TeleportConfirmPopup, Color3.fromRGB(92, 190, 220), 1, 0.2)
+
+create("TextLabel", {
+    Size = UDim2.new(1, -30, 0, 34),
+    Position = UDim2.fromOffset(15, 14),
+    BackgroundTransparency = 1,
+    Text = "Servidor encontrado",
+    TextColor3 = Color3.fromRGB(245, 245, 250),
+    TextSize = 18,
+    Font = Enum.Font.SourceSansBold,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 61,
+}, TeleportConfirmPopup)
+
+local TeleportConfirmMessage = create("TextLabel", {
+    Size = UDim2.new(1, -30, 0, 82),
+    Position = UDim2.fromOffset(15, 55),
+    BackgroundTransparency = 1,
+    Text = "",
+    TextColor3 = Color3.fromRGB(205, 215, 230),
+    TextSize = 13,
+    TextWrapped = true,
+    Font = Enum.Font.SourceSans,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    TextYAlignment = Enum.TextYAlignment.Top,
+    ZIndex = 61,
+}, TeleportConfirmPopup)
+
+local TeleportCancelButton = create("TextButton", {
+    Size = UDim2.fromOffset(150, 38),
+    Position = UDim2.new(0, 15, 1, -53),
+    BackgroundColor3 = Color3.fromRGB(76, 82, 103),
+    Text = "CANCELAR",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextSize = 12,
+    Font = Enum.Font.SourceSansBold,
+    ZIndex = 61,
+}, TeleportConfirmPopup)
+corner(TeleportCancelButton, 8)
+styleButton(TeleportCancelButton, Color3.fromRGB(76, 82, 103), Color3.fromRGB(94, 102, 128))
+
+local TeleportContinueButton = create("TextButton", {
+    Size = UDim2.fromOffset(210, 38),
+    Position = UDim2.new(1, -225, 1, -53),
+    BackgroundColor3 = Color3.fromRGB(0, 145, 185),
+    Text = "CONTINUAR",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextSize = 12,
+    Font = Enum.Font.SourceSansBold,
+    ZIndex = 61,
+}, TeleportConfirmPopup)
+corner(TeleportContinueButton, 8)
+styleButton(TeleportContinueButton, Color3.fromRGB(0, 145, 185), Color3.fromRGB(25, 175, 215))
+
+local teleportDecision
+local function askTeleportConfirmation(server, context)
+    local playing = tonumber(server and server.playing)
+    local maximum = tonumber(server and server.maxPlayers)
+    local occupancy = playing and maximum and (tostring(playing) .. "/" .. tostring(maximum)) or "disponível"
+    local target = context or "um novo servidor"
+
+    TeleportConfirmMessage.Text = "Encontrei " .. target .. " (" .. occupancy .. ").\n"
+        .. "Você quer sair deste servidor e continuar para o destino encontrado?"
+    teleportDecision = nil
+    TeleportConfirmPopup.Visible = true
+
+    while teleportDecision == nil and not destroyed do
+        task.wait()
+    end
+
+    local accepted = teleportDecision == true and not destroyed
+    teleportDecision = nil
+    if TeleportConfirmPopup.Parent then
+        TeleportConfirmPopup.Visible = false
+    end
+    return accepted
+end
+
+TeleportCancelButton.MouseButton1Click:Connect(function()
+    teleportDecision = false
+end)
+TeleportContinueButton.MouseButton1Click:Connect(function()
+    teleportDecision = true
+end)
+
 VerifiedButton.MouseButton1Click:Connect(function()
     VerifiedPopup.Visible = true
     VerifiedInput:CaptureFocus()
@@ -1704,8 +1798,15 @@ local function searchVerifiedUser()
             return
         end
 
-        setStatus(VerifiedStatus, "Servidor encontrado. Entrando...", Color3.fromRGB(160, 230, 175))
+        setStatus(VerifiedStatus, "Servidor encontrado. Aguardando confirmação...", Color3.fromRGB(225, 210, 110))
         VerifiedPopup.Visible = false
+        if not askTeleportConfirmation(result, "o servidor do usuário " .. result.username) then
+            searching = false
+            hideLoading()
+            setStatus(VerifiedStatus, "Teleporte cancelado.", Color3.fromRGB(225, 210, 110))
+            return
+        end
+        setStatus(VerifiedStatus, "Entrando no servidor confirmado...", Color3.fromRGB(160, 230, 175))
         local joined = teleport(result)
         searching = false
         hideLoading()
@@ -1727,6 +1828,7 @@ runSearch = function(mode, label)
 
     task.spawn(function()
         local connected = false
+        local cancelled = false
         for attempt = 1, 5 do
             if destroyed then
                 break
@@ -1743,9 +1845,15 @@ runSearch = function(mode, label)
                     "Selecionado: " .. server.playing .. "/" .. server.maxPlayers,
                     Color3.fromRGB(165, 215, 240)
                 )
-                showLoading("Conectando ao servidor...")
-                if teleport(server) then
-                    connected = true
+                if askTeleportConfirmation(server, label) then
+                    showLoading("Conectando ao servidor...")
+                    if teleport(server) then
+                        connected = true
+                        break
+                    end
+                else
+                    cancelled = true
+                    setStatus(SearchStatus, "Teleporte cancelado.", Color3.fromRGB(225, 210, 110))
                     break
                 end
             else
@@ -1756,7 +1864,7 @@ runSearch = function(mode, label)
 
         searching = false
         hideLoading()
-        if not connected then
+        if not connected and not cancelled then
             setStatus(SearchStatus, "Não foi possível trocar de servidor.", Color3.fromRGB(240, 130, 130))
         end
     end)
