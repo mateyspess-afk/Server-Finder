@@ -1334,6 +1334,57 @@ local VerifiedButton = searchButton(
 )
 local RandomButton = searchButton("Servidor aleatório", UDim2.fromOffset(220, 148), Color3.fromRGB(205, 115, 0))
 
+-- Card informativo adicional; os botões e a lógica de busca existentes permanecem iguais.
+local ScriptsServerCard = create("Frame", {
+    Size = UDim2.new(1, 0, 0, 58),
+    Position = UDim2.fromOffset(0, 246),
+    BackgroundColor3 = Color3.fromRGB(31, 35, 55),
+    BorderSizePixel = 0,
+}, SearchPage)
+corner(ScriptsServerCard, 10)
+stroke(ScriptsServerCard, Color3.fromRGB(105, 112, 220), 1, 0.62)
+
+create("Frame", {
+    Size = UDim2.fromOffset(4, 34),
+    Position = UDim2.fromOffset(0, 12),
+    BackgroundColor3 = Color3.fromRGB(120, 55, 190),
+    BorderSizePixel = 0,
+}, ScriptsServerCard)
+
+create("TextLabel", {
+    Size = UDim2.new(1, -160, 0, 24),
+    Position = UDim2.fromOffset(14, 7),
+    BackgroundTransparency = 1,
+    Text = "Server Scripts",
+    TextColor3 = Color3.fromRGB(245, 248, 255),
+    TextSize = 16,
+    Font = Enum.Font.SourceSansBold,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, ScriptsServerCard)
+
+create("TextLabel", {
+    Size = UDim2.new(1, -160, 0, 20),
+    Position = UDim2.fromOffset(14, 31),
+    BackgroundTransparency = 1,
+    Text = "Tipo: servidor cheio de scripts",
+    TextColor3 = Color3.fromRGB(165, 170, 190),
+    TextSize = 11,
+    Font = Enum.Font.SourceSans,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, ScriptsServerCard)
+
+create("TextLabel", {
+    Size = UDim2.fromOffset(126, 30),
+    Position = UDim2.new(1, -140, 0.5, -15),
+    BackgroundColor3 = Color3.fromRGB(120, 55, 190),
+    Text = "SCRIPTS",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextSize = 11,
+    Font = Enum.Font.SourceSansBold,
+    TextXAlignment = Enum.TextXAlignment.Center,
+    TextYAlignment = Enum.TextYAlignment.Center,
+}, ScriptsServerCard)
+
 local VerifiedPopup = create("Frame", {
     Size = UDim2.fromOffset(390, 185),
     Position = UDim2.new(0.5, -195, 0.5, -92),
