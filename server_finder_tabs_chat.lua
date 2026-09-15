@@ -1953,28 +1953,38 @@ local function resolveCreatorUserId()
 end
 
 local function queryCreatorFollow()
-    local userId = resolveCreatorUserId()
-    local response = httpRequest(
-        "https://friends.roblox.com/v1/user/following-exists",
-        "POST",
-        HttpService:JSONEncode({
-            targetUserIds = {userId},
-        })
-    )
-    local data = decodeJson(response, "Resposta de follow inválida.")
-    local followings = data.followings
-    if type(followings) ~= "table" then
-        error("A API não retornou a lista de followings.")
-    end
+    local creatorId = resolveCreatorUserId()
+    local cursor
 
-    for _, relationship in ipairs(followings) do
-        if type(relationship) == "table"
-            and tonumber(relationship.userId) == tonumber(userId) then
-            return relationship.isFollowing == true
+    -- Esta rota pública não exige cookie do Roblox. A consulta paginada
+    -- evita depender de /user/following-exists, que exige autenticação web.
+    for page = 1, 50 do
+        local url = "https://friends.roblox.com/v1/users/"
+            .. tostring(Player.UserId)
+            .. "/followings?sortOrder=Asc&limit=100"
+        if cursor and cursor ~= "" then
+            url = url .. "&cursor=" .. urlEncode(cursor)
+        end
+
+        local data = decodeJson(httpGet(url), "Resposta de follow inválida.")
+        if type(data.data) ~= "table" then
+            error("A API não retornou a lista de followings.")
+        end
+
+        for _, followedUser in ipairs(data.data) do
+            if type(followedUser) == "table"
+                and tonumber(followedUser.id or followedUser.userId) == tonumber(creatorId) then
+                return true
+            end
+        end
+
+        cursor = data.nextPageCursor
+        if not cursor or cursor == "" then
+            return false
         end
     end
 
-    error("A API não retornou o estado do follow.")
+    error("A lista de followings excedeu o limite de páginas.")
 end
 
 local function lockFollowGate(statusText)
