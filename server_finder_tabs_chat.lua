@@ -284,12 +284,13 @@ local function isAvailable(server)
     return true
 end
 
-local function collectServers()
+local function collectServers(maxPages)
     local result = {}
     local known = {}
     local cursor = ""
+    local pageLimit = maxPages or Config.maxPages
 
-    for page = 1, Config.maxPages do
+    for page = 1, pageLimit do
         if destroyed then
             return {}
         end
@@ -429,7 +430,7 @@ local function serverScore(server, mode)
 end
 
 local function chooseServer(mode)
-    local servers = collectServers()
+    local servers = collectServers(mode == "brazil" and 1 or nil)
     if #servers == 0 then
         return nil, "Nenhum servidor disponível foi encontrado."
     end
@@ -2332,13 +2333,14 @@ runSearch = function(mode, label)
         local connected = false
         local cancelled = false
         local failureMessage
-        for attempt = 1, 5 do
+        local maxAttempts = mode == "brazil" and 2 or 5
+        for attempt = 1, maxAttempts do
             if destroyed then
                 break
             end
             setStatus(
                 SearchStatus,
-                label .. " • tentativa " .. attempt .. "/5",
+                label .. " • tentativa " .. attempt .. "/" .. maxAttempts,
                 Color3.fromRGB(225, 210, 110)
             )
             local server, selectionError = chooseServer(mode)
