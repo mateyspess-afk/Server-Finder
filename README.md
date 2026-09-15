@@ -4,7 +4,8 @@ Script Luau para executor Roblox, criado por **mateus_15600**.
 
 ## Recursos
 
-- Interface com abas laterais: Buscar, Chat Bot e Scripts, com Info no cabeçalho
+- Interface com abas laterais: Buscar, Chat Bot, Scripts e Configs, com Info no cabeçalho
+- Aba Configs com quatro temas visuais e salvamento automático da escolha
 - Janela arrastável, minimizável e com avatar do criador
 - Tela de carregamento personalizada com saída manual e fallback anti-travamento
 - Liberação do painel somente após confirmar o follow do criador
@@ -24,6 +25,9 @@ Script Luau para executor Roblox, criado por **mateus_15600**.
 - O filtro Servidor BR consulta o endpoint de junção do Roblox e uma API de geolocalização para confirmar o país. Ele não faz fallback para um servidor estrangeiro quando essa consulta falha.
 - O loading verifica se o jogador segue `mateus_15600`. Se ainda não seguir, mostra o perfil e mantém as funções bloqueadas até uma nova verificação confirmar o follow.
 - A aba Scripts permanece reservada para scripts personalizados que serão adicionados em breve.
+- A aba Configs oferece os temas Midnight, Ocean, Emerald e Sunset. O tema escolhido é salvo
+  em `ServerFinder_Config.json` com `writefile` e carregado automaticamente na próxima execução.
+  Em executores sem suporte a `writefile`, o tema continua valendo durante a sessão atual.
 - O ícone do Discord usa PNG estático e fallback de asset local quando o executor não aceita URLs externas em `ImageLabel`.
 - A busca pede confirmação antes de iniciar qualquer teleporte, com opções para cancelar ou continuar.
 - A busca de usuário verificado exige um username específico.
