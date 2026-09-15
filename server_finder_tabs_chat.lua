@@ -258,7 +258,10 @@ local Themes = {
 local ThemeBindings = {}
 local ThemeButtons = {}
 local TabButtons = {}
+local TabIndicators = {}
+local TabStrokes = {}
 local ThemeStatus
+local InfoTab
 local currentThemeName = "Midnight"
 
 local function isTheme(name)
@@ -435,7 +438,19 @@ local function applyTheme(name)
     end
 
     for tabName, button in pairs(TabButtons) do
-        button:SetAttribute("ActiveColor", tabName == "Configs" and colors.purple or colors.primary)
+        local activeColor = tabName == "Configs" and colors.purple or colors.primary
+        button:SetAttribute("ActiveColor", activeColor)
+        if TabIndicators[tabName] then
+            TabIndicators[tabName].BackgroundColor3 = activeColor
+        end
+    end
+    if InfoTab and InfoTab.Parent then
+        InfoTab.BackgroundColor3 = InfoTab:GetAttribute("IsActive")
+            and colors.primary
+            or colors.infoButton
+        InfoTab.TextColor3 = InfoTab:GetAttribute("IsActive")
+            and colors.textBright
+            or colors.textAccent
     end
 
     if ThemeStatus and ThemeStatus.Parent then
@@ -1162,20 +1177,40 @@ local function makeTab(name, text, order, color)
         Text = text,
         TextColor3 = Color3.fromRGB(215, 218, 230),
         TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
         Font = Enum.Font.SourceSansBold,
         AutoButtonColor = false,
     }, Sidebar)
     button:SetAttribute("ActiveColor", color or Color3.fromRGB(0, 135, 190))
     corner(button, 8)
-    stroke(button, Color3.fromRGB(255, 255, 255), 1, 0.9)
+    create("UIPadding", {
+        PaddingLeft = UDim.new(0, 15),
+    }, button)
+    TabStrokes[name] = stroke(button, Color3.fromRGB(255, 255, 255), 1, 0.9)
+    local indicator = create("Frame", {
+        Size = UDim2.fromOffset(4, 26),
+        Position = UDim2.fromOffset(5, 8),
+        BackgroundColor3 = color or Color3.fromRGB(0, 135, 190),
+        BorderSizePixel = 0,
+        Visible = false,
+        Active = false,
+    }, button)
+    corner(indicator, 2)
+    TabIndicators[name] = indicator
     button.MouseEnter:Connect(function()
         if not button:GetAttribute("IsActive") then
             button.BackgroundColor3 = Themes[currentThemeName].colors.tabHover
+            if TabStrokes[name] then
+                TabStrokes[name].Transparency = 0.55
+            end
         end
     end)
     button.MouseLeave:Connect(function()
         if not button:GetAttribute("IsActive") then
             button.BackgroundColor3 = Themes[currentThemeName].colors.tab
+            if TabStrokes[name] then
+                TabStrokes[name].Transparency = 0.9
+            end
         end
     end)
     TabButtons[name] = button
@@ -1193,7 +1228,7 @@ local ChatTab = makeTab("Chat", "☵  CHAT BOT", 2)
 local ScriptsTab = makeTab("Scripts", "▤  SCRIPTS", 3)
 local ConfigsTab = makeTab("Configs", "⚙  CONFIGS", 4, Color3.fromRGB(112, 78, 178))
 
-local InfoTab = create("TextButton", {
+InfoTab = create("TextButton", {
     Size = UDim2.fromOffset(52, 30),
     Position = UDim2.new(1, -132, 0, 9),
     BackgroundColor3 = Color3.fromRGB(42, 57, 75),
@@ -1219,11 +1254,21 @@ local function showPage(name)
     end
     for tabName, button in pairs(TabButtons) do
         local activeColor = button:GetAttribute("ActiveColor") or colors.primary
-        button:SetAttribute("IsActive", tabName == name)
-        button.BackgroundColor3 = tabName == name
-            and activeColor
-            or colors.tab
+        local isActive = tabName == name
+        button:SetAttribute("IsActive", isActive)
+        button.BackgroundColor3 = isActive and activeColor or colors.tab
+        if TabIndicators[tabName] then
+            TabIndicators[tabName].Visible = isActive
+            TabIndicators[tabName].BackgroundColor3 = activeColor
+        end
+        if TabStrokes[tabName] then
+            TabStrokes[tabName].Color = isActive and activeColor or colors.border
+            TabStrokes[tabName].Transparency = isActive and 0.25 or 0.9
+        end
     end
+    InfoTab:SetAttribute("IsActive", name == "Info")
+    InfoTab.BackgroundColor3 = name == "Info" and colors.primary or colors.infoButton
+    InfoTab.TextColor3 = name == "Info" and colors.textBright or colors.textAccent
 end
 
 SearchTab.MouseButton1Click:Connect(function()
