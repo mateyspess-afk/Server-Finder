@@ -455,15 +455,23 @@ local function serverScore(server, mode)
     return score
 end
 
-local function lowestPingServer(servers)
+local function largestServer(servers)
     local selected
-    local bestPing = math.huge
+    local bestScore = -math.huge
 
     for _, server in ipairs(servers) do
+        local playing = tonumber(server.playing) or 0
+        local free = math.max(0, (tonumber(server.maxPlayers) or 0) - playing)
         local ping = tonumber(server.ping)
-        if ping and ping < bestPing then
+        -- A quantidade de jogadores é a prioridade. O ping só desempata
+        -- servidores com tamanho semelhante.
+        local score = playing * 10000 - free * 100
+        if ping then
+            score = score - ping
+        end
+        if score > bestScore then
             selected = server
-            bestPing = ping
+            bestScore = score
         end
     end
 
@@ -474,7 +482,7 @@ local function chooseServer(mode)
     local isBrazil = mode == "brazil"
     local servers = collectServers(
         isBrazil and Config.maxPages or nil,
-        isBrazil and "Asc" or "Desc"
+        "Desc"
     )
     if #servers == 0 then
         return nil, "Nenhum servidor disponível foi encontrado."
@@ -507,9 +515,9 @@ local function chooseServer(mode)
         end
         if #brazilServers == 0 then
             -- O endpoint de região passou a exigir autenticação em muitos
-            -- executores. O campo ping da lista pública ainda permite escolher
-            -- o servidor mais próximo como fallback, evitando uma tela vazia.
-            local fallback = lowestPingServer(servers)
+            -- executores. Escolha o servidor mais cheio para manter o objetivo
+            -- do botão; o ping só serve como desempate.
+            local fallback = largestServer(servers)
             if fallback then
                 fallback.regionFallback = true
                 return fallback, nil
@@ -2404,7 +2412,7 @@ runSearch = function(mode, label)
             local server, selectionError = chooseServer(mode)
             if server then
                 local regionNote = server.regionFallback
-                    and " • região não confirmada, menor ping"
+                    and " • região não confirmada, servidor mais cheio"
                     or ""
                 setStatus(
                     SearchStatus,
@@ -2416,7 +2424,7 @@ runSearch = function(mode, label)
                     Color3.fromRGB(165, 215, 240)
                 )
                 local teleportContext = server.regionFallback
-                    and label .. " (menor ping; região não confirmada)"
+                    and label .. " (servidor mais cheio; região não confirmada)"
                     or label
                 if askTeleportConfirmation(server, teleportContext) then
                     showLoading("Conectando ao servidor...")
