@@ -29,7 +29,7 @@ Script Luau para executor Roblox, criado por **mateus_15600**.
 - A busca de usuário verificado exige um username específico.
 - O usuário precisa estar online em um servidor de Brookhaven no momento da consulta.
 - O executor precisa suportar requisições HTTP GET e POST. O filtro BR depende de POST no endpoint `gamejoin.roblox.com`; se o executor bloquear esse endpoint, a interface mostra o motivo e não promete um servidor brasileiro.
-- A verificação de follow usa POST em `friends.roblox.com/v1/user/following-exists`, enviando `targetUserIds`; o script não força o follow, apenas verifica o estado retornado pela API. O executor precisa oferecer uma função `request`/`http_request` para enviar POST.
+- A verificação de follow consulta `friends.roblox.com/v1/users/{userId}/followings` com paginação de até 100 itens por página e para assim que encontra o criador; não depende de cookie ou token do Roblox.
 - Este script foi feito para um ambiente de executor Luau, não para Roblox Studio.
 
 Use por sua conta e respeite as regras do Roblox e do executor utilizado.
