@@ -1954,59 +1954,27 @@ end
 
 local function queryCreatorFollow()
     local userId = resolveCreatorUserId()
-    local url = "https://friends.roblox.com/v1/users/"
-        .. tostring(Player.UserId)
-        .. "/followings/"
-        .. tostring(userId)
-
-    local requester = getRequester()
-    if requester then
-        local ok, response = pcall(function()
-            return requester({
-                Url = url,
-                Method = "GET",
-            })
-        end)
-        if not ok then
-            error("O executor recusou a consulta de follow.")
-        end
-        if type(response) == "string" then
-            local result = parseFollowResponse(response)
-            if result == nil then
-                error("Resposta de follow inválida.")
-            end
-            return result
-        end
-        if type(response) ~= "table" then
-            error("Resposta de follow inválida.")
-        end
-
-        local status = tonumber(response.StatusCode or response.Status)
-        if status == 404 then
-            return false
-        end
-        if status and status >= 400 then
-            error("Erro HTTP " .. tostring(status) .. " ao consultar o follow.")
-        end
-
-        local result = parseFollowResponse(response.Body or response.body)
-        if result == nil then
-            error("Resposta de follow inválida.")
-        end
-        return result
+    local response = httpRequest(
+        "https://friends.roblox.com/v1/user/following-exists",
+        "POST",
+        HttpService:JSONEncode({
+            targetUserIds = {userId},
+        })
+    )
+    local data = decodeJson(response, "Resposta de follow inválida.")
+    local followings = data.followings
+    if type(followings) ~= "table" then
+        error("A API não retornou a lista de followings.")
     end
 
-    local ok, body = pcall(function()
-        return game:HttpGet(url)
-    end)
-    if not ok then
-        error("Este executor não permite consultar o follow.")
+    for _, relationship in ipairs(followings) do
+        if type(relationship) == "table"
+            and tonumber(relationship.userId) == tonumber(userId) then
+            return relationship.isFollowing == true
+        end
     end
-    local result = parseFollowResponse(body)
-    if result == nil then
-        error("Resposta de follow inválida.")
-    end
-    return result
+
+    error("A API não retornou o estado do follow.")
 end
 
 local function lockFollowGate(statusText)
