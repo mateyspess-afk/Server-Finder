@@ -70,6 +70,7 @@ local Config = {
 
 local blacklist = {}
 local regionCache = {}
+local regionApiUnavailable = false
 local searching = false
 local teleportFailed = false
 local destroyed = false
@@ -398,14 +399,23 @@ local function getServerRegion(server)
         return cached.region
     end
 
-    local ok, region = pcall(function()
+    local ok, result = pcall(function()
         local ip = getServerIp(server)
         if not ip then
             return nil
         end
         return lookupIpRegion(ip)
     end)
-    if not ok then
+    local region
+    if ok then
+        region = result
+    else
+        local message = string.lower(tostring(result))
+        if message:find("401", 1, true)
+            or message:find("403", 1, true)
+            or message:find("não possui request", 1, true) then
+            regionApiUnavailable = true
+        end
         region = nil
     end
 
@@ -436,11 +446,17 @@ local function chooseServer(mode)
     end
 
     if mode == "brazil" then
+        if regionApiUnavailable then
+            return nil, "A API de região do Roblox bloqueou a consulta. O executor precisa permitir essa consulta autenticada; o servidor BR não pode ser confirmado com segurança."
+        end
         local brazilServers = {}
         local checked = 0
         for _, server in ipairs(servers) do
             if checked >= Config.maxRegionChecks then
                 break
+            end
+            if regionApiUnavailable then
+                return nil, "A API de região do Roblox bloqueou a consulta. O servidor BR não pode ser confirmado com segurança."
             end
             checked = checked + 1
             setStatus(
