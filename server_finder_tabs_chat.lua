@@ -614,16 +614,44 @@ local OwnerAvatar = create("ImageLabel", {
 }, Header)
 corner(OwnerAvatar, 17)
 
-create("TextLabel", {
+local HubTitle = create("TextLabel", {
     Size = UDim2.new(1, -235, 0, 23),
     Position = UDim2.fromOffset(56, 3),
     BackgroundTransparency = 1,
     Text = "SERVER FINDER",
-    TextColor3 = Color3.fromRGB(245, 245, 250),
+    TextColor3 = Color3.fromRGB(255, 218, 120),
+    TextStrokeColor3 = Color3.fromRGB(126, 72, 18),
+    TextStrokeTransparency = 0.32,
     TextSize = 16,
     Font = Enum.Font.SourceSansBold,
     TextXAlignment = Enum.TextXAlignment.Left,
 }, Header)
+
+local TitleShine = create("UIGradient", {
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(140, 82, 18)),
+        ColorSequenceKeypoint.new(0.28, Color3.fromRGB(255, 202, 83)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 248, 190)),
+        ColorSequenceKeypoint.new(0.72, Color3.fromRGB(255, 202, 83)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(140, 82, 18)),
+    }),
+    Offset = Vector2.new(-1, 0),
+    Rotation = 0,
+}, HubTitle)
+
+-- Reflexo animado para o dourado parecer metálico, sem perder legibilidade.
+task.spawn(function()
+    while not destroyed and TitleShine.Parent do
+        for offset = -1, 1, 0.035 do
+            if destroyed or not TitleShine.Parent then
+                return
+            end
+            TitleShine.Offset = Vector2.new(offset, 0)
+            task.wait(0.035)
+        end
+        task.wait(0.65)
+    end
+end)
 
 create("TextLabel", {
     Size = UDim2.new(1, -235, 0, 17),
@@ -639,13 +667,29 @@ create("TextLabel", {
 local Minimize = create("TextButton", {
     Size = UDim2.fromOffset(30, 30),
     Position = UDim2.new(1, -72, 0, 9),
-    BackgroundColor3 = Color3.fromRGB(75, 80, 100),
+    BackgroundColor3 = Color3.fromRGB(132, 96, 28),
     Text = "—",
-    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextColor3 = Color3.fromRGB(255, 246, 210),
     TextSize = 18,
     Font = Enum.Font.SourceSansBold,
 }, Header)
 corner(Minimize, 7)
+styleButton(Minimize, Color3.fromRGB(132, 96, 28), Color3.fromRGB(182, 137, 42))
+
+local MinimizedBadge = create("TextLabel", {
+    Size = UDim2.fromOffset(112, 22),
+    Position = UDim2.new(1, -196, 0, 13),
+    BackgroundColor3 = Color3.fromRGB(55, 40, 16),
+    BackgroundTransparency = 0.08,
+    BorderSizePixel = 0,
+    Text = "✦  MINI HUB  •  ATIVO",
+    TextColor3 = Color3.fromRGB(255, 220, 125),
+    TextSize = 10,
+    Font = Enum.Font.SourceSansBold,
+    Visible = false,
+}, Header)
+corner(MinimizedBadge, 8)
+stroke(MinimizedBadge, Color3.fromRGB(223, 169, 58), 1, 0.35)
 
 local Close = create("TextButton", {
     Size = UDim2.fromOffset(30, 30),
@@ -2419,9 +2463,18 @@ Minimize.MouseButton1Click:Connect(function()
     minimized = not minimized
     Sidebar.Visible = not minimized
     Main.Visible = not minimized
+    ResizeGrip.Visible = not minimized
+    MinimizedBadge.Visible = minimized
     Window.Size = minimized
-        and UDim2.new(0, 720, 0, 48)
+        and UDim2.new(0, 390, 0, 52)
         or UDim2.new(0, 720, 0, 460)
+    Window.BackgroundColor3 = minimized
+        and Color3.fromRGB(25, 20, 12)
+        or Color3.fromRGB(15, 18, 27)
+    Header.BackgroundColor3 = minimized
+        and Color3.fromRGB(34, 27, 15)
+        or Color3.fromRGB(25, 30, 44)
+    HubTitle.TextSize = minimized and 14 or 16
     Minimize.Text = minimized and "+" or "—"
     applyResponsiveScale()
     clampWindowToViewport()
