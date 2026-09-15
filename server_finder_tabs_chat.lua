@@ -6,7 +6,7 @@
     - Layout centrado, arrastável, minimizável e compatível com toque.
     - Loading renovado com progresso, animação e botão "entrar agora".
     - Liberação condicionada ao follow do criador, com verificação automática.
-    - Aba Info com detalhes do script e acesso ao Discord.
+    - Abas Configs e Info com temas salvos, detalhes do script e acesso ao Discord.
     - Mantém busca de servidores, busca de usuário verificado e chatbot local.
 ]]
 
@@ -68,6 +68,382 @@ local Config = {
     regionCacheTime = 600,
 }
 
+-- Preferências visuais ficam no diretório de arquivos do executor.
+-- O script continua funcionando mesmo em executores sem readfile/writefile:
+-- nesse caso o tema vale para a sessão atual e a interface informa o motivo.
+local CONFIG_FILE = "ServerFinder_Config.json"
+local Themes = {
+    Midnight = {
+        label = "Midnight",
+        description = "Azul escuro com ciano",
+        preview = Color3.fromRGB(35, 168, 205),
+        colors = {
+            window = Color3.fromRGB(15, 18, 27),
+            header = Color3.fromRGB(25, 30, 44),
+            sidebar = Color3.fromRGB(20, 24, 35),
+            panel = Color3.fromRGB(23, 28, 41),
+            panelAlt = Color3.fromRGB(20, 24, 36),
+            deep = Color3.fromRGB(15, 19, 29),
+            surface = Color3.fromRGB(28, 31, 42),
+            popup = Color3.fromRGB(29, 32, 44),
+            notice = Color3.fromRGB(29, 34, 47),
+            discordCard = Color3.fromRGB(31, 35, 55),
+            input = Color3.fromRGB(35, 38, 50),
+            tab = Color3.fromRGB(40, 43, 57),
+            tabHover = Color3.fromRGB(54, 60, 79),
+            neutral = Color3.fromRGB(76, 82, 103),
+            mutedButton = Color3.fromRGB(65, 70, 88),
+            resize = Color3.fromRGB(42, 49, 67),
+            overlay = Color3.fromRGB(8, 10, 17),
+            loadingBar = Color3.fromRGB(37, 44, 62),
+            infoButton = Color3.fromRGB(42, 57, 75),
+            avatar = Color3.fromRGB(48, 52, 68),
+            primary = Color3.fromRGB(0, 135, 190),
+            success = Color3.fromRGB(0, 145, 75),
+            successAlt = Color3.fromRGB(28, 118, 92),
+            purple = Color3.fromRGB(120, 55, 190),
+            warning = Color3.fromRGB(205, 115, 0),
+            danger = Color3.fromRGB(190, 55, 65),
+            discord = Color3.fromRGB(88, 101, 242),
+            accent = Color3.fromRGB(75, 218, 225),
+            accentStrong = Color3.fromRGB(0, 190, 230),
+            border = Color3.fromRGB(70, 93, 125),
+            text = Color3.fromRGB(245, 245, 250),
+            textBright = Color3.fromRGB(245, 248, 255),
+            textMuted = Color3.fromRGB(165, 170, 190),
+            textDim = Color3.fromRGB(120, 145, 170),
+            textAccent = Color3.fromRGB(185, 240, 240),
+            textSuccess = Color3.fromRGB(145, 240, 180),
+            textWarning = Color3.fromRGB(255, 215, 125),
+            textDanger = Color3.fromRGB(240, 130, 130),
+        },
+    },
+    Ocean = {
+        label = "Ocean",
+        description = "Azul profundo e turquesa",
+        preview = Color3.fromRGB(39, 188, 214),
+        colors = {
+            window = Color3.fromRGB(8, 20, 34),
+            header = Color3.fromRGB(11, 38, 58),
+            sidebar = Color3.fromRGB(8, 30, 48),
+            panel = Color3.fromRGB(12, 43, 63),
+            panelAlt = Color3.fromRGB(10, 36, 55),
+            deep = Color3.fromRGB(6, 24, 39),
+            surface = Color3.fromRGB(16, 54, 72),
+            popup = Color3.fromRGB(14, 47, 66),
+            notice = Color3.fromRGB(18, 55, 70),
+            discordCard = Color3.fromRGB(24, 48, 78),
+            input = Color3.fromRGB(20, 59, 76),
+            tab = Color3.fromRGB(17, 57, 76),
+            tabHover = Color3.fromRGB(23, 79, 98),
+            neutral = Color3.fromRGB(47, 78, 96),
+            mutedButton = Color3.fromRGB(36, 66, 85),
+            resize = Color3.fromRGB(20, 65, 87),
+            overlay = Color3.fromRGB(4, 15, 27),
+            loadingBar = Color3.fromRGB(19, 60, 80),
+            infoButton = Color3.fromRGB(17, 65, 83),
+            avatar = Color3.fromRGB(25, 67, 85),
+            primary = Color3.fromRGB(0, 145, 190),
+            success = Color3.fromRGB(0, 155, 125),
+            successAlt = Color3.fromRGB(10, 126, 117),
+            purple = Color3.fromRGB(74, 94, 190),
+            warning = Color3.fromRGB(198, 119, 23),
+            danger = Color3.fromRGB(178, 58, 78),
+            discord = Color3.fromRGB(78, 105, 218),
+            accent = Color3.fromRGB(55, 220, 225),
+            accentStrong = Color3.fromRGB(0, 194, 225),
+            border = Color3.fromRGB(46, 111, 139),
+            text = Color3.fromRGB(235, 249, 255),
+            textBright = Color3.fromRGB(240, 252, 255),
+            textMuted = Color3.fromRGB(163, 201, 215),
+            textDim = Color3.fromRGB(116, 161, 181),
+            textAccent = Color3.fromRGB(169, 245, 242),
+            textSuccess = Color3.fromRGB(143, 241, 202),
+            textWarning = Color3.fromRGB(255, 215, 130),
+            textDanger = Color3.fromRGB(255, 143, 150),
+        },
+    },
+    Emerald = {
+        label = "Emerald",
+        description = "Verde escuro com aqua",
+        preview = Color3.fromRGB(52, 201, 146),
+        colors = {
+            window = Color3.fromRGB(12, 25, 24),
+            header = Color3.fromRGB(19, 45, 40),
+            sidebar = Color3.fromRGB(13, 35, 31),
+            panel = Color3.fromRGB(18, 50, 43),
+            panelAlt = Color3.fromRGB(16, 43, 39),
+            deep = Color3.fromRGB(9, 29, 28),
+            surface = Color3.fromRGB(28, 61, 52),
+            popup = Color3.fromRGB(22, 54, 47),
+            notice = Color3.fromRGB(34, 64, 48),
+            discordCard = Color3.fromRGB(32, 53, 67),
+            input = Color3.fromRGB(28, 65, 55),
+            tab = Color3.fromRGB(26, 61, 52),
+            tabHover = Color3.fromRGB(38, 85, 69),
+            neutral = Color3.fromRGB(59, 86, 78),
+            mutedButton = Color3.fromRGB(48, 76, 68),
+            resize = Color3.fromRGB(35, 76, 65),
+            overlay = Color3.fromRGB(5, 19, 18),
+            loadingBar = Color3.fromRGB(28, 69, 60),
+            infoButton = Color3.fromRGB(30, 77, 70),
+            avatar = Color3.fromRGB(38, 73, 64),
+            primary = Color3.fromRGB(0, 155, 164),
+            success = Color3.fromRGB(21, 164, 103),
+            successAlt = Color3.fromRGB(29, 133, 93),
+            purple = Color3.fromRGB(112, 78, 178),
+            warning = Color3.fromRGB(191, 122, 22),
+            danger = Color3.fromRGB(179, 58, 69),
+            discord = Color3.fromRGB(77, 111, 207),
+            accent = Color3.fromRGB(86, 222, 192),
+            accentStrong = Color3.fromRGB(25, 202, 177),
+            border = Color3.fromRGB(59, 111, 99),
+            text = Color3.fromRGB(238, 250, 244),
+            textBright = Color3.fromRGB(243, 255, 249),
+            textMuted = Color3.fromRGB(166, 204, 187),
+            textDim = Color3.fromRGB(119, 161, 145),
+            textAccent = Color3.fromRGB(164, 244, 220),
+            textSuccess = Color3.fromRGB(146, 242, 181),
+            textWarning = Color3.fromRGB(255, 220, 132),
+            textDanger = Color3.fromRGB(255, 145, 145),
+        },
+    },
+    Sunset = {
+        label = "Sunset",
+        description = "Roxo quente e laranja",
+        preview = Color3.fromRGB(236, 127, 87),
+        colors = {
+            window = Color3.fromRGB(29, 16, 28),
+            header = Color3.fromRGB(54, 25, 43),
+            sidebar = Color3.fromRGB(39, 20, 36),
+            panel = Color3.fromRGB(59, 27, 47),
+            panelAlt = Color3.fromRGB(49, 23, 43),
+            deep = Color3.fromRGB(27, 14, 27),
+            surface = Color3.fromRGB(72, 34, 54),
+            popup = Color3.fromRGB(65, 29, 48),
+            notice = Color3.fromRGB(76, 39, 47),
+            discordCard = Color3.fromRGB(57, 32, 67),
+            input = Color3.fromRGB(78, 36, 55),
+            tab = Color3.fromRGB(70, 32, 55),
+            tabHover = Color3.fromRGB(102, 46, 70),
+            neutral = Color3.fromRGB(105, 62, 78),
+            mutedButton = Color3.fromRGB(84, 48, 70),
+            resize = Color3.fromRGB(91, 45, 68),
+            overlay = Color3.fromRGB(19, 9, 19),
+            loadingBar = Color3.fromRGB(81, 39, 61),
+            infoButton = Color3.fromRGB(92, 44, 65),
+            avatar = Color3.fromRGB(82, 44, 66),
+            primary = Color3.fromRGB(191, 71, 135),
+            success = Color3.fromRGB(196, 100, 53),
+            successAlt = Color3.fromRGB(157, 79, 67),
+            purple = Color3.fromRGB(148, 69, 190),
+            warning = Color3.fromRGB(224, 111, 35),
+            danger = Color3.fromRGB(195, 56, 73),
+            discord = Color3.fromRGB(111, 83, 211),
+            accent = Color3.fromRGB(239, 139, 112),
+            accentStrong = Color3.fromRGB(235, 93, 119),
+            border = Color3.fromRGB(132, 71, 103),
+            text = Color3.fromRGB(255, 242, 246),
+            textBright = Color3.fromRGB(255, 246, 239),
+            textMuted = Color3.fromRGB(222, 178, 190),
+            textDim = Color3.fromRGB(174, 126, 148),
+            textAccent = Color3.fromRGB(255, 203, 184),
+            textSuccess = Color3.fromRGB(191, 241, 174),
+            textWarning = Color3.fromRGB(255, 215, 138),
+            textDanger = Color3.fromRGB(255, 151, 157),
+        },
+    },
+}
+
+local ThemeBindings = {}
+local ThemeButtons = {}
+local TabButtons = {}
+local ThemeStatus
+local currentThemeName = "Midnight"
+
+local function isTheme(name)
+    return type(name) == "string" and Themes[name] ~= nil
+end
+
+local function loadSavedTheme()
+    if type(readfile) ~= "function" then
+        return "Midnight"
+    end
+
+    local ok, raw = pcall(readfile, CONFIG_FILE)
+    if not ok or type(raw) ~= "string" or raw == "" then
+        return "Midnight"
+    end
+
+    local decodedOk, decoded = pcall(function()
+        return HttpService:JSONDecode(raw)
+    end)
+    if decodedOk and type(decoded) == "table" and isTheme(decoded.theme) then
+        return decoded.theme
+    end
+    return "Midnight"
+end
+
+Config.theme = loadSavedTheme()
+currentThemeName = Config.theme
+
+local function saveTheme()
+    if type(writefile) ~= "function" then
+        return false, "Este executor não permite salvar arquivos."
+    end
+
+    local ok, errorMessage = pcall(function()
+        writefile(CONFIG_FILE, HttpService:JSONEncode({
+            theme = Config.theme,
+        }))
+    end)
+    if not ok then
+        return false, tostring(errorMessage)
+    end
+    return true
+end
+
+local function colorKey(color)
+    if typeof(color) ~= "Color3" then
+        return nil
+    end
+    return string.format(
+        "%d,%d,%d",
+        math.floor(color.R * 255 + 0.5),
+        math.floor(color.G * 255 + 0.5),
+        math.floor(color.B * 255 + 0.5)
+    )
+end
+
+local BackgroundRoles = {
+    ["15,18,27"] = "window",
+    ["25,30,44"] = "header",
+    ["20,24,35"] = "sidebar",
+    ["23,28,41"] = "panel",
+    ["20,24,36"] = "panelAlt",
+    ["15,19,29"] = "deep",
+    ["28,31,42"] = "surface",
+    ["29,32,44"] = "popup",
+    ["29,34,47"] = "notice",
+    ["31,35,55"] = "discordCard",
+    ["35,38,50"] = "input",
+    ["40,43,57"] = "tab",
+    ["54,60,79"] = "tabHover",
+    ["76,82,103"] = "neutral",
+    ["65,70,88"] = "mutedButton",
+    ["42,49,67"] = "resize",
+    ["8,10,17"] = "overlay",
+    ["37,44,62"] = "loadingBar",
+    ["42,57,75"] = "infoButton",
+    ["48,52,68"] = "avatar",
+    ["0,135,190"] = "primary",
+    ["0,145,75"] = "success",
+    ["28,118,92"] = "successAlt",
+    ["120,55,190"] = "purple",
+    ["205,115,0"] = "warning",
+    ["190,55,65"] = "danger",
+    ["88,101,242"] = "discord",
+}
+
+local TextRoles = {
+    ["245,245,250"] = "text",
+    ["245,248,255"] = "textBright",
+    ["240,240,245"] = "textBright",
+    ["255,255,255"] = "textBright",
+    ["215,218,230"] = "text",
+    ["205,215,235"] = "text",
+    ["165,170,190"] = "textMuted",
+    ["155,190,205"] = "textMuted",
+    ["145,148,165"] = "textMuted",
+    ["185,190,210"] = "textMuted",
+    ["175,180,200"] = "textMuted",
+    ["120,145,170"] = "textDim",
+    ["115,190,210"] = "textAccent",
+    ["120,220,220"] = "textAccent",
+    ["185,240,240"] = "textAccent",
+    ["120,230,220"] = "textAccent",
+    ["150,210,255"] = "textAccent",
+    ["225,210,110"] = "textWarning",
+    ["255,215,125"] = "textWarning",
+    ["145,240,180"] = "textSuccess",
+    ["170,240,185"] = "textSuccess",
+    ["160,230,175"] = "textSuccess",
+    ["240,130,130"] = "textDanger",
+}
+
+local StrokeRoles = {
+    ["70,82,110"] = "border",
+    ["70,93,125"] = "border",
+    ["63,76,103"] = "border",
+    ["78,93,122"] = "border",
+    ["75,92,122"] = "border",
+    ["98,105,135"] = "border",
+    ["92,190,220"] = "accent",
+    ["105,112,220"] = "purple",
+    ["220,178,82"] = "warning",
+    ["0,190,230"] = "accentStrong",
+    ["255,255,255"] = "textBright",
+}
+
+local function inferThemeRole(className, property, value)
+    local key = colorKey(value)
+    if not key then
+        return nil
+    end
+    if property == "BackgroundColor3" then
+        return BackgroundRoles[key]
+    end
+    if property == "TextColor3" then
+        return TextRoles[key]
+    end
+    if className == "UIStroke" and property == "Color" then
+        return StrokeRoles[key]
+    end
+    return nil
+end
+
+local function applyTheme(name)
+    if not isTheme(name) then
+        name = "Midnight"
+    end
+
+    Config.theme = name
+    currentThemeName = name
+    local colors = Themes[name].colors
+    for _, binding in ipairs(ThemeBindings) do
+        if binding.object and binding.object.Parent and colors[binding.role] then
+            pcall(function()
+                binding.object[binding.property] = colors[binding.role]
+            end)
+        end
+    end
+
+    for _, themeButton in ipairs(ThemeButtons) do
+        if themeButton.button and themeButton.button.Parent then
+            local selected = themeButton.name == name
+            themeButton.button.BackgroundColor3 = selected
+                and colors.primary
+                or colors.tab
+            themeButton.button.TextColor3 = colors.textBright
+            themeButton.button.Text = selected
+                and "✓  " .. themeButton.label .. "\n" .. Themes[themeButton.name].description
+                or themeButton.label .. "\n" .. Themes[themeButton.name].description
+            if themeButton.preview and themeButton.preview.Parent then
+                themeButton.preview.BackgroundColor3 = Themes[themeButton.name].preview
+            end
+        end
+    end
+
+    for tabName, button in pairs(TabButtons) do
+        button:SetAttribute("ActiveColor", tabName == "Configs" and colors.purple or colors.primary)
+    end
+
+    if ThemeStatus and ThemeStatus.Parent then
+        ThemeStatus.Text = "Tema atual: " .. Themes[name].label
+        ThemeStatus.TextColor3 = colors.textSuccess
+    end
+end
+
 local blacklist = {}
 local regionCache = {}
 local regionApiUnavailable = false
@@ -88,6 +464,14 @@ local function create(className, properties, parent)
     local object = Instance.new(className)
     for property, value in pairs(properties or {}) do
         object[property] = value
+        local role = inferThemeRole(className, property, value)
+        if role then
+            table.insert(ThemeBindings, {
+                object = object,
+                property = property,
+                role = role,
+            })
+        end
     end
     object.Parent = parent
     return object
@@ -108,13 +492,25 @@ end
 local function styleButton(button, color, hoverColor)
     button.AutoButtonColor = false
     stroke(button, Color3.fromRGB(255, 255, 255), 1, 0.82)
+    local themeRole = inferThemeRole("TextButton", "BackgroundColor3", color)
+    local function baseColor()
+        return themeRole and Themes[currentThemeName].colors[themeRole] or color
+    end
+    local function hoverButtonColor()
+        local selectedColor = baseColor()
+        return Color3.new(
+            math.min(selectedColor.R * 1.15 + 0.03, 1),
+            math.min(selectedColor.G * 1.15 + 0.03, 1),
+            math.min(selectedColor.B * 1.15 + 0.03, 1)
+        )
+    end
     button.MouseEnter:Connect(function()
         if button.Active ~= false then
-            button.BackgroundColor3 = hoverColor or color
+            button.BackgroundColor3 = themeRole and hoverButtonColor() or (hoverColor or color)
         end
     end)
     button.MouseLeave:Connect(function()
-        button.BackgroundColor3 = color
+        button.BackgroundColor3 = baseColor()
     end)
     return button
 end
@@ -747,7 +1143,6 @@ corner(ResizeGrip, 6)
 stroke(ResizeGrip, Color3.fromRGB(90, 210, 230), 1, 0.25)
 
 local Pages = {}
-local TabButtons = {}
 
 local function makePage(name)
     local page = create("Frame", {
@@ -775,12 +1170,12 @@ local function makeTab(name, text, order, color)
     stroke(button, Color3.fromRGB(255, 255, 255), 1, 0.9)
     button.MouseEnter:Connect(function()
         if not button:GetAttribute("IsActive") then
-            button.BackgroundColor3 = Color3.fromRGB(54, 60, 79)
+            button.BackgroundColor3 = Themes[currentThemeName].colors.tabHover
         end
     end)
     button.MouseLeave:Connect(function()
         if not button:GetAttribute("IsActive") then
-            button.BackgroundColor3 = Color3.fromRGB(40, 43, 57)
+            button.BackgroundColor3 = Themes[currentThemeName].colors.tab
         end
     end)
     TabButtons[name] = button
@@ -790,11 +1185,13 @@ end
 local SearchPage = makePage("Buscar")
 local ChatPage = makePage("Chat")
 local ScriptsPage = makePage("Scripts")
+local ConfigsPage = makePage("Configs")
 local InfoPage = makePage("Info")
 
 local SearchTab = makeTab("Buscar", "⌂  BUSCAR", 1)
 local ChatTab = makeTab("Chat", "☵  CHAT BOT", 2)
 local ScriptsTab = makeTab("Scripts", "▤  SCRIPTS", 3)
+local ConfigsTab = makeTab("Configs", "⚙  CONFIGS", 4, Color3.fromRGB(112, 78, 178))
 
 local InfoTab = create("TextButton", {
     Size = UDim2.fromOffset(52, 30),
@@ -809,22 +1206,23 @@ local InfoTab = create("TextButton", {
 corner(InfoTab, 7)
 stroke(InfoTab, Color3.fromRGB(95, 220, 225), 1, 0.35)
 InfoTab.MouseEnter:Connect(function()
-    InfoTab.BackgroundColor3 = Color3.fromRGB(55, 78, 94)
+    InfoTab.BackgroundColor3 = Themes[currentThemeName].colors.tabHover
 end)
 InfoTab.MouseLeave:Connect(function()
-    InfoTab.BackgroundColor3 = Color3.fromRGB(42, 57, 75)
+    InfoTab.BackgroundColor3 = Themes[currentThemeName].colors.infoButton
 end)
 
 local function showPage(name)
+    local colors = Themes[currentThemeName].colors
     for pageName, page in pairs(Pages) do
         page.Visible = pageName == name
     end
     for tabName, button in pairs(TabButtons) do
-        local activeColor = button:GetAttribute("ActiveColor") or Color3.fromRGB(0, 135, 190)
+        local activeColor = button:GetAttribute("ActiveColor") or colors.primary
         button:SetAttribute("IsActive", tabName == name)
         button.BackgroundColor3 = tabName == name
             and activeColor
-            or Color3.fromRGB(40, 43, 57)
+            or colors.tab
     end
 end
 
@@ -836,6 +1234,9 @@ ChatTab.MouseButton1Click:Connect(function()
 end)
 ScriptsTab.MouseButton1Click:Connect(function()
     showPage("Scripts")
+end)
+ConfigsTab.MouseButton1Click:Connect(function()
+    showPage("Configs")
 end)
 InfoTab.MouseButton1Click:Connect(function()
     showPage("Info")
@@ -1131,6 +1532,146 @@ create("TextLabel", {
     TextXAlignment = Enum.TextXAlignment.Center,
     TextYAlignment = Enum.TextYAlignment.Center,
 }, ScriptsCard)
+
+-- Página Configs.
+local ConfigsCard = create("Frame", {
+    Size = UDim2.new(1, 0, 1, 0),
+    Position = UDim2.fromOffset(0, 0),
+    BackgroundColor3 = Color3.fromRGB(23, 28, 41),
+    BorderSizePixel = 0,
+}, ConfigsPage)
+corner(ConfigsCard, 11)
+stroke(ConfigsCard, Color3.fromRGB(70, 93, 125), 1, 0.72)
+
+create("TextLabel", {
+    Size = UDim2.new(1, -28, 0, 30),
+    Position = UDim2.fromOffset(14, 12),
+    BackgroundTransparency = 1,
+    Text = "Configurações do script",
+    TextColor3 = Color3.fromRGB(245, 248, 255),
+    TextSize = 20,
+    Font = Enum.Font.SourceSansBold,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, ConfigsCard)
+
+create("TextLabel", {
+    Size = UDim2.new(1, -28, 0, 28),
+    Position = UDim2.fromOffset(14, 43),
+    BackgroundTransparency = 1,
+    Text = "Escolha o tema da interface. A seleção é salva automaticamente.",
+    TextColor3 = Color3.fromRGB(165, 170, 190),
+    TextSize = 12,
+    Font = Enum.Font.SourceSans,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, ConfigsCard)
+
+ThemeStatus = create("TextLabel", {
+    Size = UDim2.new(1, -28, 0, 24),
+    Position = UDim2.fromOffset(14, 72),
+    BackgroundTransparency = 1,
+    Text = "Tema atual: " .. Themes[Config.theme].label,
+    TextColor3 = Color3.fromRGB(145, 240, 180),
+    TextSize = 12,
+    Font = Enum.Font.SourceSansBold,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, ConfigsCard)
+
+local function themeOption(name, position)
+    local theme = Themes[name]
+    local button = create("TextButton", {
+        Size = UDim2.fromOffset(188, 62),
+        Position = position,
+        BackgroundColor3 = Color3.fromRGB(40, 43, 57),
+        Text = theme.label .. "\n" .. theme.description,
+        TextColor3 = Color3.fromRGB(245, 248, 255),
+        TextSize = 12,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        Font = Enum.Font.SourceSansBold,
+        AutoButtonColor = false,
+    }, ConfigsCard)
+    corner(button, 9)
+    stroke(button, Color3.fromRGB(70, 93, 125), 1, 0.45)
+
+    local preview = create("Frame", {
+        Size = UDim2.fromOffset(10, 40),
+        Position = UDim2.new(1, -20, 0.5, -20),
+        BackgroundColor3 = theme.preview,
+        BorderSizePixel = 0,
+    }, button)
+    corner(preview, 5)
+
+    table.insert(ThemeButtons, {
+        name = name,
+        label = theme.label,
+        button = button,
+        preview = preview,
+    })
+
+    button.MouseEnter:Connect(function()
+        if name ~= currentThemeName then
+            button.BackgroundColor3 = Themes[currentThemeName].colors.tabHover
+        end
+    end)
+    button.MouseLeave:Connect(function()
+        if name ~= currentThemeName then
+            button.BackgroundColor3 = Themes[currentThemeName].colors.tab
+        end
+    end)
+    button.MouseButton1Click:Connect(function()
+        applyTheme(name)
+        local saved, errorMessage = saveTheme()
+        if saved then
+            ThemeStatus.Text = "✓ " .. theme.label .. " selecionado e salvo."
+            ThemeStatus.TextColor3 = Themes[name].colors.textSuccess
+        else
+            ThemeStatus.Text = theme.label .. " selecionado. " .. tostring(errorMessage)
+            ThemeStatus.TextColor3 = Themes[name].colors.textWarning
+        end
+    end)
+end
+
+themeOption("Midnight", UDim2.fromOffset(14, 102))
+themeOption("Ocean", UDim2.fromOffset(211, 102))
+themeOption("Emerald", UDim2.fromOffset(14, 174))
+themeOption("Sunset", UDim2.fromOffset(211, 174))
+
+local ConfigSaveButton = create("TextButton", {
+    Size = UDim2.fromOffset(188, 38),
+    Position = UDim2.fromOffset(14, 252),
+    BackgroundColor3 = Color3.fromRGB(0, 135, 190),
+    Text = "SALVAR CONFIGURAÇÃO",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextSize = 11,
+    Font = Enum.Font.SourceSansBold,
+}, ConfigsCard)
+corner(ConfigSaveButton, 8)
+styleButton(ConfigSaveButton, Color3.fromRGB(0, 135, 190), Color3.fromRGB(25, 165, 215))
+ConfigSaveButton.MouseButton1Click:Connect(function()
+    local saved, errorMessage = saveTheme()
+    if saved then
+        ThemeStatus.Text = "✓ Tema " .. Themes[Config.theme].label .. " salvo neste executor."
+        ThemeStatus.TextColor3 = Themes[Config.theme].colors.textSuccess
+    else
+        ThemeStatus.Text = tostring(errorMessage)
+        ThemeStatus.TextColor3 = Themes[Config.theme].colors.textWarning
+    end
+end)
+
+create("TextLabel", {
+    Size = UDim2.new(1, -28, 0, 58),
+    Position = UDim2.fromOffset(14, 306),
+    BackgroundTransparency = 1,
+    Text = "O arquivo ServerFinder_Config.json é criado na pasta do executor. "
+        .. "Ao executar o script novamente, o último tema salvo será carregado.",
+    TextColor3 = Color3.fromRGB(120, 145, 170),
+    TextSize = 11,
+    TextWrapped = true,
+    Font = Enum.Font.SourceSans,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    TextYAlignment = Enum.TextYAlignment.Top,
+}, ConfigsCard)
 
 -- Página Chat.
 local ChatCard = create("Frame", {
@@ -2487,6 +3028,8 @@ Close.MouseButton1Click:Connect(function()
     Gui:Destroy()
 end)
 
+-- Aplica o tema salvo somente depois de toda a interface estar registrada.
+applyTheme(Config.theme)
 showPage("Buscar")
 addMessage(Config.botName, "Olá, " .. Config.userName .. ". A interface foi ajustada para a sua tela.")
 
