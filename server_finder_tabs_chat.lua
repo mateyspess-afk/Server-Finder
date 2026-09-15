@@ -77,6 +77,8 @@ local creatorUserId
 local followUnlocked = false
 local followChecking = false
 local followGateVisible = true
+local FOLLOW_LOADING_MIN_SECONDS = 3
+local followGateStartedAt = os.clock()
 local currentScale = 1
 local manualScale = 1
 local SearchStatus
@@ -1988,8 +1990,12 @@ local function queryCreatorFollow()
 end
 
 local function lockFollowGate(statusText)
+    local wasVisible = followGateVisible
     followUnlocked = false
     followGateVisible = true
+    if not wasVisible then
+        followGateStartedAt = os.clock()
+    end
     if not Loading or not Loading.Parent then
         return
     end
@@ -2013,6 +2019,7 @@ end
 
 local function unlockFollowGate()
     local shouldHide = followGateVisible
+    local minimumRemaining = math.max(0, FOLLOW_LOADING_MIN_SECONDS - (os.clock() - followGateStartedAt))
     followUnlocked = true
     followGateVisible = false
     followChecking = false
@@ -2029,7 +2036,7 @@ local function unlockFollowGate()
 
     if shouldHide then
         task.spawn(function()
-            task.wait(0.25)
+            task.wait(minimumRemaining)
             if not destroyed and Loading.Parent then
                 hideLoading(true)
             end
