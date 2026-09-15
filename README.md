@@ -22,7 +22,7 @@ Script Luau para executor Roblox, criado por **mateus_15600**.
 
 - O botão English Server fica desativado porque a API pública de listagem não informa a região ou o idioma real do servidor.
 - O filtro Servidor BR consulta o endpoint de junção do Roblox e uma API de geolocalização para confirmar o país. Ele não faz fallback para um servidor estrangeiro quando essa consulta falha.
-- O loading verifica se o jogador segue `mateyspess-afk`. Se ainda não seguir, mostra o perfil e mantém as funções bloqueadas até uma nova verificação confirmar o follow.
+- O loading verifica se o jogador segue `mateus_15600`. Se ainda não seguir, mostra o perfil e mantém as funções bloqueadas até uma nova verificação confirmar o follow.
 - A aba Scripts permanece reservada para scripts personalizados que serão adicionados em breve.
 - O ícone do Discord usa PNG estático e fallback de asset local quando o executor não aceita URLs externas em `ImageLabel`.
 - A busca pede confirmação antes de iniciar qualquer teleporte, com opções para cancelar ou continuar.
