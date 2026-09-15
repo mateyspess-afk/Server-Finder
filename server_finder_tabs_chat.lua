@@ -106,6 +106,19 @@ local function styleButton(button, color, hoverColor)
     return button
 end
 
+local function disableButton(button, color)
+    button.Active = false
+    button.Selectable = false
+    button.AutoButtonColor = false
+    button.BackgroundColor3 = color
+    button.MouseEnter:Connect(function()
+        button.BackgroundColor3 = color
+    end)
+    button.MouseLeave:Connect(function()
+        button.BackgroundColor3 = color
+    end)
+end
+
 local function clamp(value, minimum, maximum)
     return math.max(minimum, math.min(maximum, value))
 end
@@ -702,7 +715,18 @@ local function searchButton(text, position, color)
 end
 
 local BRButton = searchButton("Servidor BR*", UDim2.fromOffset(0, 88), Color3.fromRGB(0, 145, 75))
-local ENButton = searchButton("English Server*", UDim2.fromOffset(220, 88), Color3.fromRGB(0, 105, 205))
+local ENButton = searchButton("English Server", UDim2.fromOffset(220, 94), Color3.fromRGB(65, 70, 88))
+disableButton(ENButton, Color3.fromRGB(65, 70, 88))
+create("TextLabel", {
+    Size = UDim2.fromOffset(205, 18),
+    Position = UDim2.fromOffset(220, 70),
+    BackgroundTransparency = 1,
+    Text = "DESATIVADO",
+    TextColor3 = Color3.fromRGB(245, 190, 105),
+    TextSize = 10,
+    Font = Enum.Font.SourceSansBold,
+    TextXAlignment = Enum.TextXAlignment.Center,
+}, SearchPage)
 local VerifiedButton = searchButton(
     "Procurar usuário verificado",
     UDim2.fromOffset(0, 148),
@@ -795,7 +819,7 @@ end)
 
 -- Página Scripts.
 local ScriptsCard = create("Frame", {
-    Size = UDim2.new(1, 0, 0, 288),
+    Size = UDim2.new(1, 0, 1, 0),
     Position = UDim2.fromOffset(0, 0),
     BackgroundColor3 = Color3.fromRGB(23, 28, 41),
     BorderSizePixel = 0,
@@ -804,90 +828,16 @@ corner(ScriptsCard, 11)
 stroke(ScriptsCard, Color3.fromRGB(70, 93, 125), 1, 0.72)
 
 create("TextLabel", {
-    Size = UDim2.new(1, -28, 0, 34),
-    Position = UDim2.fromOffset(14, 15),
+    Size = UDim2.new(1, -28, 0, 40),
+    Position = UDim2.new(0, 14, 0.5, -20),
     BackgroundTransparency = 1,
-    Text = "Scripts e ferramentas",
+    Text = "Scripts personalizados em breve",
     TextColor3 = Color3.fromRGB(245, 248, 255),
     TextSize = 20,
     Font = Enum.Font.SourceSansBold,
-    TextXAlignment = Enum.TextXAlignment.Left,
-}, ScriptsPage)
-
-create("TextLabel", {
-    Size = UDim2.new(1, -28, 0, 32),
-    Position = UDim2.fromOffset(14, 49),
-    BackgroundTransparency = 1,
-    Text = "Recursos disponíveis nesta versão do Server Finder.",
-    TextColor3 = Color3.fromRGB(155, 190, 205),
-    TextSize = 12,
-    Font = Enum.Font.SourceSans,
-    TextXAlignment = Enum.TextXAlignment.Left,
-}, ScriptsPage)
-
-local function scriptFeature(title, description, position, accent)
-    local feature = create("Frame", {
-        Size = UDim2.new(0.5, -22, 0, 76),
-        Position = position,
-        BackgroundColor3 = Color3.fromRGB(30, 36, 52),
-        BorderSizePixel = 0,
-    }, ScriptsPage)
-    corner(feature, 9)
-    stroke(feature, accent, 1, 0.72)
-    create("Frame", {
-        Size = UDim2.fromOffset(3, 48),
-        Position = UDim2.fromOffset(10, 14),
-        BackgroundColor3 = accent,
-        BorderSizePixel = 0,
-    }, feature)
-    create("TextLabel", {
-        Size = UDim2.new(1, -30, 0, 22),
-        Position = UDim2.fromOffset(22, 11),
-        BackgroundTransparency = 1,
-        Text = title,
-        TextColor3 = Color3.fromRGB(235, 240, 250),
-        TextSize = 13,
-        Font = Enum.Font.SourceSansBold,
-        TextXAlignment = Enum.TextXAlignment.Left,
-    }, feature)
-    create("TextLabel", {
-        Size = UDim2.new(1, -30, 0, 32),
-        Position = UDim2.fromOffset(22, 34),
-        BackgroundTransparency = 1,
-        Text = description,
-        TextColor3 = Color3.fromRGB(170, 180, 200),
-        TextSize = 11,
-        TextWrapped = true,
-        Font = Enum.Font.SourceSans,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextYAlignment = Enum.TextYAlignment.Top,
-    }, feature)
-end
-
-scriptFeature(
-    "Busca inteligente",
-    "Encontra instâncias públicas e evita servidores já testados.",
-    UDim2.fromOffset(14, 92),
-    Color3.fromRGB(75, 218, 225)
-)
-scriptFeature(
-    "Usuário verificado",
-    "Procura um jogador com selo azul online no Brookhaven.",
-    UDim2.new(0.5, 8, 0, 92),
-    Color3.fromRGB(164, 109, 235)
-)
-scriptFeature(
-    "Chat local",
-    "A NOVA responde nesta sessão sem enviar mensagens para fora.",
-    UDim2.fromOffset(14, 178),
-    Color3.fromRGB(120, 220, 165)
-)
-scriptFeature(
-    "Escala responsiva",
-    "A janela se adapta à tela e pode ser redimensionada.",
-    UDim2.new(0.5, 8, 0, 178),
-    Color3.fromRGB(230, 174, 88)
-)
+    TextXAlignment = Enum.TextXAlignment.Center,
+    TextYAlignment = Enum.TextYAlignment.Center,
+}, ScriptsCard)
 
 -- Página Chat.
 local ChatCard = create("Frame", {
@@ -1025,8 +975,14 @@ local ChatState = {
 local runSearch
 
 local function hasAny(text, words)
+    local normalizedText = " " .. text:gsub("[%c%p]", " ") .. " "
     for _, word in ipairs(words) do
-        if text:find(word, 1, true) then
+        local normalizedWord = word:gsub("[%c%p]", " ")
+        if #normalizedWord <= 3 then
+            if normalizedText:find(" " .. normalizedWord .. " ", 1, true) then
+                return true
+            end
+        elseif text:find(normalizedWord, 1, true) then
             return true
         end
     end
@@ -1069,7 +1025,7 @@ local function answer(rawMessage)
     end
     if hasAny(text, {"idioma", "brasil", "br", "english", "inglês"}) then
         ChatState.lastIntent = "language"
-        return "Os rótulos BR e EN são apenas informativos: a API pública não informa a região do servidor."
+        return "O botão English Server está desativado porque a API pública não informa a região do servidor."
     end
     if hasAny(text, {"servidor aleatório", "servidor aleatorio", "qualquer servidor"}) then
         ChatState.lastIntent = "search"
@@ -1181,17 +1137,20 @@ create("TextLabel", {
 }, InfoCard)
 
 local function copyToClipboard(text)
-    local clipboardFunctions = {
-        setclipboard,
-        toclipboard,
-        set_clipboard,
-    }
+    local clipboardFunctions = {}
+    if type(setclipboard) == "function" then
+        table.insert(clipboardFunctions, setclipboard)
+    end
+    if type(toclipboard) == "function" then
+        table.insert(clipboardFunctions, toclipboard)
+    end
+    if type(set_clipboard) == "function" then
+        table.insert(clipboardFunctions, set_clipboard)
+    end
     for _, clipboardFunction in ipairs(clipboardFunctions) do
-        if type(clipboardFunction) == "function" then
-            local ok = pcall(clipboardFunction, text)
-            if ok then
-                return true
-            end
+        local ok = pcall(clipboardFunction, text)
+        if ok then
+            return true
         end
     end
     return false
@@ -1309,6 +1268,48 @@ CopyDiscordButton.MouseButton1Click:Connect(function()
     end
 end)
 
+local function loadDiscordIcon(iconUrl, guildId)
+    local assetLoaders = {}
+    if type(getcustomasset) == "function" then
+        table.insert(assetLoaders, getcustomasset)
+    end
+    if type(getsynasset) == "function" then
+        table.insert(assetLoaders, getsynasset)
+    end
+
+    if type(writefile) == "function" and #assetLoaders > 0 then
+        local fileName = "ServerFinder_DiscordIcon_" .. tostring(guildId) .. ".png"
+        local fileReady = false
+        local prepared = pcall(function()
+            if type(isfile) == "function" then
+                local existsOk, exists = pcall(isfile, fileName)
+                fileReady = existsOk and exists == true
+            end
+
+            if not fileReady then
+                local imageBody = httpGet(iconUrl)
+                if type(imageBody) ~= "string" or imageBody == "" then
+                    error("O Discord não retornou uma imagem válida.")
+                end
+                writefile(fileName, imageBody)
+                fileReady = true
+            end
+        end)
+
+        if prepared and fileReady then
+            for _, assetLoader in ipairs(assetLoaders) do
+                local assetOk, asset = pcall(assetLoader, fileName)
+                if assetOk and type(asset) == "string" and asset ~= "" then
+                    return asset, true
+                end
+            end
+        end
+    end
+
+    -- Alguns executores aceitam a URL diretamente; outros só aceitam rbxasset.
+    return iconUrl, false
+end
+
 task.spawn(function()
     local ok, body = pcall(function()
         return httpGet(
@@ -1334,16 +1335,24 @@ task.spawn(function()
     end
 
     if guild.id and guild.icon and DiscordIcon.Parent then
-        local extension = tostring(guild.icon):sub(1, 2) == "a_" and "gif" or "png"
-        DiscordIcon.Image = "https://cdn.discordapp.com/icons/"
+        -- PNG também funciona para ícones animados como uma imagem estática.
+        local iconUrl = "https://cdn.discordapp.com/icons/"
             .. tostring(guild.id)
             .. "/"
             .. tostring(guild.icon)
-            .. "."
-            .. extension
+            .. ".png"
             .. "?size=128"
-        DiscordIcon.ImageTransparency = 0
-        DiscordIconFallback.Visible = false
+        local iconSource, isLocalAsset = loadDiscordIcon(
+            iconUrl,
+            tostring(guild.id) .. "_" .. tostring(guild.icon)
+        )
+        local imageOk = pcall(function()
+            DiscordIcon.Image = iconSource
+            DiscordIcon.ImageTransparency = 0
+        end)
+        if imageOk and isLocalAsset then
+            DiscordIconFallback.Visible = false
+        end
     end
 end)
 
@@ -1371,8 +1380,8 @@ create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 44),
     Position = UDim2.fromOffset(14, 34),
     BackgroundTransparency = 1,
-    Text = "Os rótulos BR/EN são apenas informativos: a API pública não informa a região do servidor.\n"
-        .. "O botão English Server não consegue garantir uma região específica.",
+    Text = "A API pública não informa a região do servidor.\n"
+        .. "O botão English Server está desativado até existir um filtro confiável.",
     TextColor3 = Color3.fromRGB(210, 215, 225),
     TextSize = 11,
     TextWrapped = true,
@@ -1755,9 +1764,6 @@ end
 
 BRButton.MouseButton1Click:Connect(function()
     runSearch("full", "servidor BR*")
-end)
-ENButton.MouseButton1Click:Connect(function()
-    runSearch("full", "servidor EN*")
 end)
 RandomButton.MouseButton1Click:Connect(function()
     runSearch("random", "servidor aleatório")
