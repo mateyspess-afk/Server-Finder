@@ -5,6 +5,7 @@
     - Escala automática baseada no tamanho real da tela.
     - Layout centrado, arrastável, minimizável e compatível com toque.
     - Loading renovado com progresso, animação e botão "entrar agora".
+    - Liberação condicionada ao follow do criador, com verificação automática.
     - Aba Info com detalhes do script e acesso ao Discord.
     - Mantém busca de servidores, busca de usuário verificado e chatbot local.
 ]]
@@ -54,6 +55,7 @@ local MIN_SCALE = 0.55
 local MAX_SCALE = 1
 local MAX_USER_SCALE = 1.35
 local CREATOR_USERNAME = "mateus_15600"
+local CREATOR_PROFILE_URL = "https://www.roblox.com/users/profile?username=" .. CREATOR_USERNAME
 local DISCORD_INVITE = "https://discord.gg/RtfAn6zku8"
 local DISCORD_INVITE_CODE = "RtfAn6zku8"
 
@@ -71,6 +73,9 @@ local regionCache = {}
 local searching = false
 local teleportFailed = false
 local destroyed = false
+local creatorUserId
+local followUnlocked = false
+local followChecking = false
 local currentScale = 1
 local manualScale = 1
 local SearchStatus
@@ -1748,7 +1753,7 @@ local LoadingHint = create("TextLabel", {
     Size = UDim2.new(1, -80, 0, 18),
     Position = UDim2.new(0, 40, 0, 316),
     BackgroundTransparency = 1,
-    Text = "O loading fecha sozinho em alguns segundos.",
+    Text = "Siga o criador para liberar o painel.",
     TextColor3 = Color3.fromRGB(125, 135, 160),
     TextSize = 11,
     Font = Enum.Font.SourceSans,
@@ -1758,16 +1763,59 @@ local LoadingHint = create("TextLabel", {
 
 local LoadingContinue = create("TextButton", {
     Size = UDim2.fromOffset(150, 32),
-    Position = UDim2.new(0.5, -75, 0, 354),
+    Position = UDim2.new(0.5, -75, 0, 402),
     BackgroundColor3 = Color3.fromRGB(0, 135, 190),
     BorderSizePixel = 0,
     Text = "ENTRAR AGORA",
     TextColor3 = Color3.fromRGB(255, 255, 255),
     TextSize = 12,
     Font = Enum.Font.SourceSansBold,
+    Visible = false,
     ZIndex = 52,
 }, Loading)
 corner(LoadingContinue, 8)
+
+local FollowStatus = create("TextLabel", {
+    Size = UDim2.new(1, -80, 0, 38),
+    Position = UDim2.new(0, 40, 0, 338),
+    BackgroundTransparency = 1,
+    Text = "Siga @" .. CREATOR_USERNAME .. " para liberar o script.",
+    TextColor3 = Color3.fromRGB(255, 215, 125),
+    TextSize = 11,
+    TextWrapped = true,
+    Font = Enum.Font.SourceSansBold,
+    TextXAlignment = Enum.TextXAlignment.Center,
+    TextYAlignment = Enum.TextYAlignment.Center,
+    ZIndex = 52,
+}, Loading)
+
+local FollowOpen = create("TextButton", {
+    Size = UDim2.fromOffset(132, 32),
+    Position = UDim2.new(0.5, -140, 0, 374),
+    BackgroundColor3 = Color3.fromRGB(0, 135, 190),
+    BorderSizePixel = 0,
+    Text = "ABRIR PERFIL",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextSize = 11,
+    Font = Enum.Font.SourceSansBold,
+    ZIndex = 52,
+}, Loading)
+corner(FollowOpen, 8)
+styleButton(FollowOpen, Color3.fromRGB(0, 135, 190), Color3.fromRGB(0, 170, 215))
+
+local FollowCheck = create("TextButton", {
+    Size = UDim2.fromOffset(132, 32),
+    Position = UDim2.new(0.5, 8, 0, 374),
+    BackgroundColor3 = Color3.fromRGB(28, 118, 92),
+    BorderSizePixel = 0,
+    Text = "JÁ SEGUI — VERIFICAR",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextSize = 10,
+    Font = Enum.Font.SourceSansBold,
+    ZIndex = 52,
+}, Loading)
+corner(FollowCheck, 8)
+styleButton(FollowCheck, Color3.fromRGB(28, 118, 92), Color3.fromRGB(38, 150, 112))
 
 task.spawn(function()
     local ok, userId = pcall(function()
@@ -1776,6 +1824,7 @@ task.spawn(function()
     if not ok or not userId then
         return
     end
+    creatorUserId = userId
     local thumbOk, thumbnail = pcall(function()
         return Players:GetUserThumbnailAsync(
             userId,
@@ -1830,8 +1879,204 @@ local function showLoading(text)
     Loading.Visible = true
 end
 
+local function parseFollowResponse(body)
+    if type(body) == "boolean" then
+        return body
+    end
+    if type(body) ~= "string" then
+        return nil
+    end
+
+    local normalized = body:match("^%s*(.-)%s*$")
+    if normalized == "true" then
+        return true
+    end
+    if normalized == "false" then
+        return false
+    end
+
+    local ok, decoded = pcall(function()
+        return HttpService:JSONDecode(normalized)
+    end)
+    if not ok then
+        return nil
+    end
+    if type(decoded) == "boolean" then
+        return decoded
+    end
+    if type(decoded) == "table" then
+        if decoded.isFollowing ~= nil then
+            return decoded.isFollowing == true
+        end
+        if decoded.following ~= nil then
+            return decoded.following == true
+        end
+    end
+    return nil
+end
+
+local function resolveCreatorUserId()
+    if creatorUserId then
+        return creatorUserId
+    end
+
+    local ok, userId = pcall(function()
+        return Players:GetUserIdFromNameAsync(CREATOR_USERNAME)
+    end)
+    if ok and userId then
+        creatorUserId = userId
+        return userId
+    end
+    error("Não foi possível localizar o perfil do criador.")
+end
+
+local function queryCreatorFollow()
+    local userId = resolveCreatorUserId()
+    local url = "https://friends.roblox.com/v1/users/"
+        .. tostring(Player.UserId)
+        .. "/followings/"
+        .. tostring(userId)
+
+    local requester = getRequester()
+    if requester then
+        local ok, response = pcall(function()
+            return requester({
+                Url = url,
+                Method = "GET",
+            })
+        end)
+        if not ok then
+            error("O executor recusou a consulta de follow.")
+        end
+        if type(response) == "string" then
+            local result = parseFollowResponse(response)
+            if result == nil then
+                error("Resposta de follow inválida.")
+            end
+            return result
+        end
+        if type(response) ~= "table" then
+            error("Resposta de follow inválida.")
+        end
+
+        local status = tonumber(response.StatusCode or response.Status)
+        if status == 404 then
+            return false
+        end
+        if status and status >= 400 then
+            error("Erro HTTP " .. tostring(status) .. " ao consultar o follow.")
+        end
+
+        local result = parseFollowResponse(response.Body or response.body)
+        if result == nil then
+            error("Resposta de follow inválida.")
+        end
+        return result
+    end
+
+    local ok, body = pcall(function()
+        return game:HttpGet(url)
+    end)
+    if not ok then
+        error("Este executor não permite consultar o follow.")
+    end
+    local result = parseFollowResponse(body)
+    if result == nil then
+        error("Resposta de follow inválida.")
+    end
+    return result
+end
+
+local function unlockFollowGate()
+    followUnlocked = true
+    followChecking = false
+    FollowStatus.Text = "✓ Follow confirmado. O script foi liberado."
+    FollowStatus.TextColor3 = Color3.fromRGB(145, 240, 180)
+    FollowOpen.Visible = false
+    FollowCheck.Visible = false
+    LoadingContinue.Visible = true
+    LoadingTitle.Text = "Acesso liberado!"
+    LoadingDetail.Text = "Obrigado por seguir o criador."
+    LoadingHint.Text = "Clique em ENTRAR AGORA para abrir o painel."
+    LoadingBarFill.Size = UDim2.new(1, 0, 1, 0)
+end
+
+local function checkFollowGate()
+    if destroyed or followChecking or followUnlocked then
+        return
+    end
+
+    followChecking = true
+    LoadingTitle.Text = "Verificando follow..."
+    LoadingDetail.Text = "Consultando o perfil do criador."
+    FollowStatus.Text = "Aguarde, verificando..."
+    FollowStatus.TextColor3 = Color3.fromRGB(225, 210, 110)
+    FollowOpen.Active = false
+    FollowCheck.Active = false
+
+    task.spawn(function()
+        local ok, isFollowing = pcall(queryCreatorFollow)
+        if destroyed or not Loading.Parent then
+            return
+        end
+
+        followChecking = false
+        FollowOpen.Active = true
+        FollowCheck.Active = true
+
+        if ok and isFollowing == true then
+            unlockFollowGate()
+            return
+        end
+
+        if ok and isFollowing == false then
+            FollowStatus.Text = "Ainda não encontrei o follow. Siga o criador e tente novamente."
+            FollowStatus.TextColor3 = Color3.fromRGB(255, 215, 125)
+        else
+            FollowStatus.Text = "Não foi possível verificar agora. Confira se o executor permite HTTP."
+            FollowStatus.TextColor3 = Color3.fromRGB(240, 130, 130)
+        end
+        LoadingTitle.Text = "Follow necessário"
+        LoadingDetail.Text = "Siga @" .. CREATOR_USERNAME .. " para continuar."
+    end)
+end
+
+FollowOpen.MouseButton1Click:Connect(function()
+    local opened = false
+    local openers = {}
+    if type(open_url) == "function" then
+        table.insert(openers, open_url)
+    end
+    if type(syn) == "table" and type(syn.open_url) == "function" then
+        table.insert(openers, syn.open_url)
+    end
+
+    for _, opener in ipairs(openers) do
+        local ok = pcall(opener, CREATOR_PROFILE_URL)
+        if ok then
+            opened = true
+            break
+        end
+    end
+
+    if opened then
+        FollowStatus.Text = "Perfil aberto. Siga o criador e clique em verificar."
+    elseif copyToClipboard(CREATOR_PROFILE_URL) then
+        FollowStatus.Text = "Link do perfil copiado. Siga o criador e clique em verificar."
+    else
+        FollowStatus.Text = CREATOR_PROFILE_URL
+    end
+    FollowStatus.TextColor3 = Color3.fromRGB(165, 215, 240)
+end)
+
+FollowCheck.MouseButton1Click:Connect(checkFollowGate)
+
 LoadingContinue.MouseButton1Click:Connect(function()
-    hideLoading(true)
+    if followUnlocked then
+        hideLoading(true)
+    else
+        checkFollowGate()
+    end
 end)
 
 local loadingConnection
@@ -1842,7 +2087,7 @@ loadingConnection = RunService.RenderStepped:Connect(function(delta)
     end
     applyResponsiveScale()
     clampWindowToViewport()
-    if Loading.Visible and not loadingFinishing then
+    if Loading.Visible and not loadingFinishing and not followChecking and not followUnlocked then
         loadingProgress = math.min(1, loadingProgress + delta * 0.18)
         LoadingBarFill.Size = UDim2.new(loadingProgress, 0, 1, 0)
         LoadingTitle.Text = "Preparando seu painel" .. string.rep(".", math.floor(os.clock() * 2) % 4)
@@ -1876,6 +2121,10 @@ pcall(function()
 end)
 
 local function searchVerifiedUser()
+    if not followUnlocked then
+        setStatus(VerifiedStatus, "Siga o criador para liberar o script.", Color3.fromRGB(225, 210, 110))
+        return
+    end
     local username = VerifiedInput.Text:gsub("^%s+", ""):gsub("%s+$", "")
     if username == "" then
         setStatus(VerifiedStatus, "Digite um username.", Color3.fromRGB(240, 130, 130))
@@ -1964,6 +2213,10 @@ end
 VerifiedSearch.MouseButton1Click:Connect(searchVerifiedUser)
 
 runSearch = function(mode, label)
+    if not followUnlocked then
+        setStatus(SearchStatus, "Siga o criador para liberar o script.", Color3.fromRGB(225, 210, 110))
+        return
+    end
     if searching then
         return
     end
@@ -2116,9 +2369,9 @@ showPage("Buscar")
 addMessage(Config.botName, "Olá, " .. Config.userName .. ". A interface foi ajustada para a sua tela.")
 
 task.spawn(function()
-    task.wait(1.8)
-    if not destroyed and not searching then
-        hideLoading()
+    task.wait(0.4)
+    if not destroyed then
+        checkFollowGate()
     end
 end)
 
