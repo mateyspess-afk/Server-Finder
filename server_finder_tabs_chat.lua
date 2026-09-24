@@ -755,7 +755,7 @@ local function collectServers(maxPages)
     return result
 end
 
--- A API pública não revela o país do servidor; usamos apenas o ping anunciado como estimativa.
+-- Restaura para BR a busca original do ZIP; a API pública não fornece região.
 
 local function serverScore(server, mode)
     local playing = tonumber(server.playing) or 0
@@ -774,36 +774,6 @@ local function chooseServer(mode)
     local servers, fetchError = collectServers()
     if #servers == 0 then
         return nil, fetchError or "Nenhum servidor disponível foi encontrado."
-    end
-
-    if mode == "brazil" then
-        local selected
-        local lowestPing = math.huge
-
-        for _, server in ipairs(servers) do
-            local ping = tonumber(server.ping)
-            if ping and ping > 0 and ping < lowestPing then
-                selected = server
-                lowestPing = ping
-            end
-        end
-
-        if not selected then
-            setStatus(
-                SearchStatus,
-                "Sem ping divulgado; usando seleção aleatória. A região não foi confirmada.",
-                Color3.fromRGB(225, 210, 110)
-            )
-            return servers[math.random(1, #servers)], nil
-        end
-
-        local reportedPing = math.floor(lowestPing + 0.5)
-        setStatus(
-            SearchStatus,
-            "Estimativa BR pelo menor ping informado: " .. reportedPing .. " ms. País não confirmado.",
-            Color3.fromRGB(225, 210, 110)
-        )
-        return selected, nil
     end
 
     if mode == "random" then
@@ -1256,7 +1226,7 @@ create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 36),
     Position = UDim2.fromOffset(16, 49),
     BackgroundTransparency = 1,
-    Text = "BR usa o menor ping informado como estimativa; o Roblox não confirma o país do servidor.",
+    Text = "Escolha uma estratégia. BR/EN são rótulos; a API não informa o idioma do servidor.",
     TextColor3 = Color3.fromRGB(165, 170, 190),
     TextSize = 12,
     TextWrapped = true,
@@ -1296,7 +1266,7 @@ local function searchButton(text, position, color)
     return button
 end
 
-local BRButton = searchButton("BR • menor ping", UDim2.fromOffset(0, 88), Color3.fromRGB(0, 145, 75))
+local BRButton = searchButton("Servidor BR*", UDim2.fromOffset(0, 88), Color3.fromRGB(0, 145, 75))
 local ENButton = searchButton("English Server", UDim2.fromOffset(220, 88), Color3.fromRGB(65, 70, 88))
 disableButton(ENButton, Color3.fromRGB(65, 70, 88))
 create("TextLabel", {
@@ -1854,7 +1824,7 @@ local function answer(rawMessage)
     end
     if hasAny(text, {"idioma", "brasil", "br", "english", "inglês"}) then
         ChatState.lastIntent = "language"
-        return "O botão BR escolhe o menor ping divulgado pela lista pública como estimativa; a região real não é confirmada pelo Roblox."
+        return "BR e English usam a mesma busca; a API pública não informa o idioma do servidor."
     end
     if hasAny(text, {"servidor aleatório", "servidor aleatorio", "qualquer servidor"}) then
         ChatState.lastIntent = "search"
@@ -2209,8 +2179,8 @@ create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 44),
     Position = UDim2.fromOffset(14, 34),
     BackgroundTransparency = 1,
-    Text = "A API pública não informa o país do servidor.\n"
-        .. "O botão BR usa o menor ping divulgado como estimativa, sem garantia de Brasil.",
+    Text = "A API pública não informa o país ou idioma do servidor.\n"
+        .. "Os rótulos BR/EN não garantem a região ou o idioma.",
     TextColor3 = Color3.fromRGB(210, 215, 225),
     TextSize = 11,
     TextWrapped = true,
@@ -2953,7 +2923,7 @@ runSearch = function(mode, label)
         local cancelled = false
         local failureMessage
         local ok, searchError = pcall(function()
-            local maxAttempts = mode == "brazil" and 2 or 5
+            local maxAttempts = 5
             for attempt = 1, maxAttempts do
                 if destroyed then
                     break
@@ -2966,14 +2936,6 @@ runSearch = function(mode, label)
                 local server, selectionError = chooseServer(mode)
                 if server then
                     local selectionText = "Selecionado: " .. server.playing .. "/" .. server.maxPlayers
-                    if mode == "brazil" then
-                        local ping = tonumber(server.ping)
-                        if ping and ping > 0 then
-                            selectionText = selectionText .. " • ping informado: " .. math.floor(ping + 0.5) .. " ms (estimativa)"
-                        else
-                            selectionText = selectionText .. " • sem ping; seleção aleatória"
-                        end
-                    end
                     setStatus(
                         SearchStatus,
                         selectionText,
@@ -3018,7 +2980,7 @@ runSearch = function(mode, label)
     end)
 end
 BRButton.MouseButton1Click:Connect(function()
-    runSearch("brazil", "servidor BR por estimativa de ping")
+    runSearch("full", "servidor BR*")
 end)
 RandomButton.MouseButton1Click:Connect(function()
     runSearch("random", "servidor aleatório")
