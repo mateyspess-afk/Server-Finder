@@ -644,7 +644,7 @@ local function httpRequest(url, method, body)
         error("Este executor não possui request para POST.")
     end
 
-    local response = requester({
+    local options = {
         Url = url,
         Method = method or "GET",
         Headers = {
@@ -652,7 +652,16 @@ local function httpRequest(url, method, body)
         },
         Body = body,
         Timeout = HTTP_TIMEOUT,
-    })
+    }
+    local ok, response = pcall(requester, options)
+    if not ok then
+        -- Alguns executores rejeitam a opção Timeout; repete sem ela.
+        options.Timeout = nil
+        ok, response = pcall(requester, options)
+    end
+    if not ok then
+        error(response)
+    end
     return responseBody(response)
 end
 
@@ -868,7 +877,7 @@ local function serverScore(server, mode)
 end
 
 local function chooseServer(mode)
-    local servers = collectServers(mode == "brazil" and 1 or nil)
+    local servers = collectServers()
     if #servers == 0 then
         return nil, "Nenhum servidor disponível foi encontrado."
     end
@@ -1389,7 +1398,7 @@ local function searchButton(text, position, color)
 end
 
 local BRButton = searchButton("Servidor BR", UDim2.fromOffset(0, 88), Color3.fromRGB(0, 145, 75))
-local ENButton = searchButton("English Server", UDim2.fromOffset(220, 94), Color3.fromRGB(65, 70, 88))
+local ENButton = searchButton("English Server", UDim2.fromOffset(220, 88), Color3.fromRGB(65, 70, 88))
 disableButton(ENButton, Color3.fromRGB(65, 70, 88))
 create("TextLabel", {
     Size = UDim2.fromOffset(205, 18),
