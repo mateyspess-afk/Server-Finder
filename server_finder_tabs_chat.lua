@@ -63,6 +63,9 @@ local Config = {
     userName = Player.DisplayName or Player.Name,
     blacklistTime = 300,
     maxPages = 5,
+    maxFriendPages = 20,
+    maxRegionChecks = 15,
+    regionCacheTime = 600,
 }
 
 -- Preferências visuais ficam no diretório de arquivos do executor.
@@ -251,6 +254,218 @@ local Themes = {
         },
     },
 }
+
+local function addTheme(name, label, description, preview, baseName, overrides)
+    local colors = {}
+    for role, color in pairs(Themes[baseName].colors) do
+        colors[role] = color
+    end
+    for role, color in pairs(overrides) do
+        colors[role] = color
+    end
+
+    Themes[name] = {
+        label = label,
+        description = description,
+        preview = preview,
+        colors = colors,
+    }
+end
+
+addTheme("Troll", "Troll", "Rosa neon e energia caótica", Color3.fromRGB(255, 38, 145), "Sunset", {
+    window = Color3.fromRGB(25, 12, 28),
+    header = Color3.fromRGB(87, 16, 60),
+    sidebar = Color3.fromRGB(48, 12, 43),
+    panel = Color3.fromRGB(59, 17, 54),
+    panelAlt = Color3.fromRGB(44, 13, 45),
+    deep = Color3.fromRGB(19, 8, 23),
+    surface = Color3.fromRGB(92, 23, 73),
+    popup = Color3.fromRGB(79, 20, 65),
+    notice = Color3.fromRGB(106, 31, 60),
+    input = Color3.fromRGB(68, 21, 67),
+    tab = Color3.fromRGB(74, 20, 69),
+    tabHover = Color3.fromRGB(127, 31, 93),
+    primary = Color3.fromRGB(255, 38, 145),
+    success = Color3.fromRGB(40, 218, 100),
+    warning = Color3.fromRGB(255, 220, 35),
+    danger = Color3.fromRGB(255, 45, 95),
+    purple = Color3.fromRGB(210, 70, 255),
+    accent = Color3.fromRGB(255, 103, 206),
+    accentStrong = Color3.fromRGB(255, 0, 190),
+    border = Color3.fromRGB(201, 61, 170),
+    text = Color3.fromRGB(255, 239, 250),
+    textBright = Color3.fromRGB(255, 255, 255),
+    textMuted = Color3.fromRGB(235, 174, 210),
+    textDim = Color3.fromRGB(200, 131, 180),
+    textAccent = Color3.fromRGB(255, 189, 231),
+    textSuccess = Color3.fromRGB(150, 255, 182),
+    textWarning = Color3.fromRGB(255, 232, 110),
+    textDanger = Color3.fromRGB(255, 151, 171),
+})
+
+addTheme("Doido", "Doido", "Roxo elétrico com verde-limão", Color3.fromRGB(177, 255, 42), "Ocean", {
+    window = Color3.fromRGB(19, 13, 35),
+    header = Color3.fromRGB(48, 24, 83),
+    sidebar = Color3.fromRGB(31, 19, 57),
+    panel = Color3.fromRGB(42, 25, 72),
+    panelAlt = Color3.fromRGB(34, 20, 62),
+    deep = Color3.fromRGB(14, 9, 29),
+    surface = Color3.fromRGB(60, 35, 99),
+    popup = Color3.fromRGB(53, 28, 88),
+    notice = Color3.fromRGB(67, 40, 85),
+    input = Color3.fromRGB(52, 31, 86),
+    tab = Color3.fromRGB(47, 28, 80),
+    tabHover = Color3.fromRGB(77, 43, 121),
+    primary = Color3.fromRGB(151, 74, 255),
+    success = Color3.fromRGB(112, 218, 38),
+    successAlt = Color3.fromRGB(83, 170, 42),
+    purple = Color3.fromRGB(190, 76, 255),
+    warning = Color3.fromRGB(255, 220, 45),
+    danger = Color3.fromRGB(255, 68, 133),
+    accent = Color3.fromRGB(177, 255, 42),
+    accentStrong = Color3.fromRGB(216, 255, 0),
+    border = Color3.fromRGB(130, 88, 205),
+    text = Color3.fromRGB(246, 241, 255),
+    textMuted = Color3.fromRGB(190, 174, 222),
+    textDim = Color3.fromRGB(151, 132, 190),
+    textAccent = Color3.fromRGB(218, 255, 139),
+    textSuccess = Color3.fromRGB(188, 255, 140),
+    textWarning = Color3.fromRGB(255, 226, 121),
+    textDanger = Color3.fromRGB(255, 151, 177),
+})
+
+addTheme("Colorido", "Colorido", "Azul, rosa e amarelo vibrantes", Color3.fromRGB(255, 93, 171), "Ocean", {
+    window = Color3.fromRGB(12, 23, 42),
+    header = Color3.fromRGB(18, 42, 76),
+    sidebar = Color3.fromRGB(14, 34, 62),
+    panel = Color3.fromRGB(22, 48, 79),
+    panelAlt = Color3.fromRGB(17, 40, 69),
+    deep = Color3.fromRGB(8, 21, 39),
+    surface = Color3.fromRGB(32, 62, 94),
+    popup = Color3.fromRGB(26, 54, 87),
+    notice = Color3.fromRGB(44, 57, 86),
+    input = Color3.fromRGB(28, 57, 91),
+    tab = Color3.fromRGB(25, 53, 86),
+    tabHover = Color3.fromRGB(40, 77, 119),
+    primary = Color3.fromRGB(35, 157, 255),
+    success = Color3.fromRGB(50, 207, 132),
+    successAlt = Color3.fromRGB(46, 157, 139),
+    purple = Color3.fromRGB(177, 82, 255),
+    warning = Color3.fromRGB(255, 198, 42),
+    danger = Color3.fromRGB(255, 73, 119),
+    accent = Color3.fromRGB(255, 93, 171),
+    accentStrong = Color3.fromRGB(255, 52, 165),
+    border = Color3.fromRGB(76, 139, 207),
+    text = Color3.fromRGB(240, 248, 255),
+    textMuted = Color3.fromRGB(174, 201, 226),
+    textDim = Color3.fromRGB(127, 164, 201),
+    textAccent = Color3.fromRGB(255, 186, 222),
+    textSuccess = Color3.fromRGB(157, 246, 193),
+    textWarning = Color3.fromRGB(255, 224, 119),
+    textDanger = Color3.fromRGB(255, 153, 167),
+})
+
+addTheme("Louco", "Louco", "Preto com verde ácido e vermelho", Color3.fromRGB(120, 255, 0), "Midnight", {
+    window = Color3.fromRGB(9, 12, 12),
+    header = Color3.fromRGB(19, 35, 22),
+    sidebar = Color3.fromRGB(13, 26, 17),
+    panel = Color3.fromRGB(20, 38, 24),
+    panelAlt = Color3.fromRGB(16, 31, 20),
+    deep = Color3.fromRGB(6, 10, 8),
+    surface = Color3.fromRGB(30, 52, 32),
+    popup = Color3.fromRGB(25, 46, 28),
+    notice = Color3.fromRGB(45, 43, 21),
+    input = Color3.fromRGB(25, 47, 28),
+    tab = Color3.fromRGB(23, 43, 26),
+    tabHover = Color3.fromRGB(39, 67, 35),
+    primary = Color3.fromRGB(120, 255, 0),
+    success = Color3.fromRGB(80, 220, 65),
+    successAlt = Color3.fromRGB(46, 152, 58),
+    purple = Color3.fromRGB(180, 58, 230),
+    warning = Color3.fromRGB(255, 188, 0),
+    danger = Color3.fromRGB(255, 35, 48),
+    accent = Color3.fromRGB(174, 255, 61),
+    accentStrong = Color3.fromRGB(90, 255, 0),
+    border = Color3.fromRGB(76, 134, 56),
+    text = Color3.fromRGB(238, 255, 235),
+    textMuted = Color3.fromRGB(166, 199, 160),
+    textDim = Color3.fromRGB(116, 156, 111),
+    textAccent = Color3.fromRGB(205, 255, 176),
+    textSuccess = Color3.fromRGB(159, 255, 132),
+    textWarning = Color3.fromRGB(255, 221, 104),
+    textDanger = Color3.fromRGB(255, 139, 139),
+})
+
+addTheme("FakeErrors", "Erros Fakes", "Visual de alerta; sem erros reais", Color3.fromRGB(255, 63, 55), "Midnight", {
+    window = Color3.fromRGB(27, 12, 15),
+    header = Color3.fromRGB(66, 20, 25),
+    sidebar = Color3.fromRGB(43, 15, 19),
+    panel = Color3.fromRGB(55, 19, 23),
+    panelAlt = Color3.fromRGB(42, 14, 19),
+    deep = Color3.fromRGB(18, 8, 11),
+    surface = Color3.fromRGB(75, 26, 29),
+    popup = Color3.fromRGB(73, 22, 26),
+    notice = Color3.fromRGB(86, 29, 24),
+    input = Color3.fromRGB(61, 19, 25),
+    tab = Color3.fromRGB(63, 20, 26),
+    tabHover = Color3.fromRGB(103, 31, 36),
+    primary = Color3.fromRGB(222, 52, 57),
+    success = Color3.fromRGB(54, 176, 97),
+    warning = Color3.fromRGB(255, 151, 38),
+    danger = Color3.fromRGB(255, 54, 56),
+    purple = Color3.fromRGB(167, 66, 181),
+    accent = Color3.fromRGB(255, 112, 87),
+    accentStrong = Color3.fromRGB(255, 65, 49),
+    border = Color3.fromRGB(165, 55, 60),
+    text = Color3.fromRGB(255, 239, 239),
+    textMuted = Color3.fromRGB(219, 172, 174),
+    textDim = Color3.fromRGB(177, 126, 132),
+    textAccent = Color3.fromRGB(255, 183, 164),
+    textSuccess = Color3.fromRGB(156, 237, 177),
+    textWarning = Color3.fromRGB(255, 208, 135),
+    textDanger = Color3.fromRGB(255, 151, 151),
+})
+
+addTheme("WindowsClassic", "Clássico Windows", "Cinza clássico e azul de título", Color3.fromRGB(0, 0, 128), "Midnight", {
+    window = Color3.fromRGB(192, 192, 192),
+    header = Color3.fromRGB(0, 0, 128),
+    sidebar = Color3.fromRGB(212, 208, 200),
+    panel = Color3.fromRGB(192, 192, 192),
+    panelAlt = Color3.fromRGB(212, 208, 200),
+    deep = Color3.fromRGB(128, 128, 128),
+    surface = Color3.fromRGB(223, 223, 223),
+    popup = Color3.fromRGB(212, 208, 200),
+    notice = Color3.fromRGB(223, 223, 223),
+    discordCard = Color3.fromRGB(192, 192, 192),
+    input = Color3.fromRGB(255, 255, 255),
+    tab = Color3.fromRGB(192, 192, 192),
+    tabHover = Color3.fromRGB(170, 190, 220),
+    neutral = Color3.fromRGB(128, 128, 128),
+    mutedButton = Color3.fromRGB(160, 160, 160),
+    resize = Color3.fromRGB(128, 128, 128),
+    overlay = Color3.fromRGB(50, 50, 50),
+    loadingBar = Color3.fromRGB(160, 160, 160),
+    infoButton = Color3.fromRGB(0, 0, 128),
+    avatar = Color3.fromRGB(160, 160, 160),
+    primary = Color3.fromRGB(0, 0, 128),
+    success = Color3.fromRGB(0, 128, 0),
+    successAlt = Color3.fromRGB(0, 112, 112),
+    purple = Color3.fromRGB(128, 0, 128),
+    warning = Color3.fromRGB(192, 96, 0),
+    danger = Color3.fromRGB(128, 0, 0),
+    discord = Color3.fromRGB(0, 0, 128),
+    accent = Color3.fromRGB(0, 0, 128),
+    accentStrong = Color3.fromRGB(0, 0, 160),
+    border = Color3.fromRGB(128, 128, 128),
+    text = Color3.fromRGB(0, 0, 0),
+    textBright = Color3.fromRGB(0, 0, 0),
+    textMuted = Color3.fromRGB(64, 64, 64),
+    textDim = Color3.fromRGB(96, 96, 96),
+    textAccent = Color3.fromRGB(0, 0, 128),
+    textSuccess = Color3.fromRGB(0, 96, 0),
+    textWarning = Color3.fromRGB(128, 64, 0),
+    textDanger = Color3.fromRGB(128, 0, 0),
+})
 
 local ThemeBindings = {}
 local ThemeButtons = {}
@@ -457,6 +672,10 @@ local function applyTheme(name)
 end
 
 local blacklist = {}
+local friendServerCache
+local friendServerCacheAt = 0
+local regionCache = {}
+local regionApiUnavailable = false
 local searching = false
 local teleportFailed = false
 local destroyed = false
@@ -722,11 +941,120 @@ local function isAvailable(server)
     return true
 end
 
+local FRIEND_SERVER_CACHE_SECONDS = 30
+
+local function getFriendServerIds()
+    if friendServerCache and os.time() - friendServerCacheAt < FRIEND_SERVER_CACHE_SECONDS then
+        return friendServerCache
+    end
+
+    local friendUserIds = {}
+    local knownUserIds = {}
+    local cursor
+    local finishedFriends = false
+
+    for page = 1, Config.maxFriendPages do
+        if destroyed then
+            error("Busca de amigos cancelada.")
+        end
+
+        setStatus(
+            SearchStatus,
+            "Verificando os servidores dos seus amigos...",
+            Color3.fromRGB(225, 210, 110)
+        )
+
+        local url = "https://friends.roblox.com/v1/users/"
+            .. tostring(Player.UserId)
+            .. "/friends?limit=100"
+        if cursor and cursor ~= "" then
+            url = url .. "&cursor=" .. urlEncode(cursor)
+        end
+
+        local friendsData = decodeJson(httpGet(url), "Resposta inválida ao consultar a lista de amigos.")
+        if type(friendsData.data) ~= "table" then
+            error("A API do Roblox não retornou a lista de amigos.")
+        end
+
+        for _, friend in ipairs(friendsData.data) do
+            local userId = type(friend) == "table" and tonumber(friend.id or friend.userId)
+            if userId and not knownUserIds[userId] then
+                knownUserIds[userId] = true
+                table.insert(friendUserIds, userId)
+            end
+        end
+
+        cursor = friendsData.nextPageCursor
+        if not cursor or cursor == "" then
+            finishedFriends = true
+            break
+        end
+    end
+
+    if not finishedFriends then
+        error("A lista de amigos excedeu o limite de páginas; nenhum servidor será escolhido sem verificar todos.")
+    end
+
+    local friendServerIds = {}
+    for startIndex = 1, #friendUserIds, 100 do
+        local batch = {}
+        local expected = {}
+        local endIndex = math.min(startIndex + 99, #friendUserIds)
+        for index = startIndex, endIndex do
+            local userId = friendUserIds[index]
+            table.insert(batch, userId)
+            expected[userId] = true
+        end
+
+        local presenceData = decodeJson(
+            httpRequest(
+                "https://presence.roblox.com/v1/presence/users",
+                "POST",
+                HttpService:JSONEncode({userIds = batch})
+            ),
+            "Resposta inválida ao consultar os servidores dos amigos."
+        )
+        if type(presenceData.userPresences) ~= "table" then
+            error("A API do Roblox não retornou a presença dos amigos.")
+        end
+
+        local received = {}
+        for _, presence in ipairs(presenceData.userPresences) do
+            local userId = type(presence) == "table" and tonumber(presence.userId)
+            if userId and expected[userId] then
+                received[userId] = true
+                local gameId = presence.gameId
+                if tonumber(presence.userPresenceType) == 2
+                    and tonumber(presence.placeId) == PLACE_ID
+                    and type(gameId) == "string"
+                    and gameId ~= "" then
+                    friendServerIds[gameId] = true
+                end
+            end
+        end
+
+        for userId in pairs(expected) do
+            if not received[userId] then
+                error("A consulta de presença veio incompleta; nenhum servidor será escolhido por segurança.")
+            end
+        end
+    end
+
+    friendServerCache = friendServerIds
+    friendServerCacheAt = os.time()
+    return friendServerIds
+end
+
 local function collectServers(maxPages)
     local result = {}
     local known = {}
     local cursor = ""
     local pageLimit = maxPages or Config.maxPages
+    local friendServersOk, friendServers = pcall(getFriendServerIds)
+    if not friendServersOk then
+        return result, "Não consegui confirmar os servidores dos seus amigos. " .. tostring(friendServers)
+    end
+    local excludedFriendServers = 0
 
     for page = 1, pageLimit do
         if destroyed then
@@ -739,9 +1067,13 @@ local function collectServers(maxPages)
         end
 
         for _, server in ipairs(data.data) do
-            if not known[server.id] and isAvailable(server) then
+            if not known[server.id] then
                 known[server.id] = true
-                table.insert(result, server)
+                if friendServers[server.id] then
+                    excludedFriendServers = excludedFriendServers + 1
+                elseif isAvailable(server) then
+                    table.insert(result, server)
+                end
             end
         end
 
@@ -752,10 +1084,119 @@ local function collectServers(maxPages)
         task.wait(0.2)
     end
 
+    if #result == 0 and excludedFriendServers > 0 then
+        return result, "Só encontrei servidores com amigos ou sem vagas. Tente buscar novamente em alguns segundos."
+    end
     return result
 end
 
--- Restaura para BR a busca original do ZIP; a API pública não fornece região.
+local function isIpAddress(value)
+    if type(value) ~= "string" then
+        return false
+    end
+    local a, b, c, d = value:match("^(%d+)%.(%d+)%.(%d+)%.(%d+)$")
+    return a
+        and tonumber(a) <= 255
+        and tonumber(b) <= 255
+        and tonumber(c) <= 255
+        and tonumber(d) <= 255
+end
+
+local function getServerIp(server)
+    local body = httpRequest(
+        "https://gamejoin.roblox.com/v1/join-game-instance",
+        "POST",
+        HttpService:JSONEncode({
+            placeId = PLACE_ID,
+            gameId = server.id,
+            isTeleport = false,
+        })
+    )
+    local data = decodeJson(body, "A API de região retornou um JSON inválido.")
+    local joinScript = data.joinScript
+    if type(joinScript) ~= "table" then
+        return nil
+    end
+
+    local endpoints = joinScript.UdmuxEndpoints
+    if type(endpoints) == "table" then
+        for _, endpoint in ipairs(endpoints) do
+            local address = type(endpoint) == "table" and endpoint.Address
+            if isIpAddress(address) then
+                return address
+            end
+        end
+    end
+
+    if isIpAddress(joinScript.MachineAddress) then
+        return joinScript.MachineAddress
+    end
+    return nil
+end
+
+local function lookupIpRegion(ip)
+    local urls = {
+        "https://ipwho.is/" .. tostring(ip),
+        "https://ip-api.com/json/" .. tostring(ip)
+            .. "?fields=status,countryCode,country,city",
+    }
+
+    for _, url in ipairs(urls) do
+        local ok, body = pcall(function()
+            return httpGet(url)
+        end)
+        if ok and body then
+            local decoded, data = pcall(function()
+                return decodeJson(body)
+            end)
+            if decoded and type(data) == "table" then
+                local countryCode = data.country_code or data.countryCode
+                local country = data.country
+                if data.success ~= false and data.status ~= "fail" and countryCode then
+                    return {
+                        countryCode = string.upper(tostring(countryCode)),
+                        country = tostring(country or countryCode),
+                        city = tostring(data.city or ""),
+                    }
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function getServerRegion(server)
+    local cached = regionCache[server.id]
+    if cached and os.time() - cached.time < Config.regionCacheTime then
+        return cached.region
+    end
+
+    local ok, result = pcall(function()
+        local ip = getServerIp(server)
+        if not ip then
+            return nil
+        end
+        return lookupIpRegion(ip)
+    end)
+    local region
+    if ok then
+        region = result
+    else
+        local message = string.lower(tostring(result))
+        if message:find("401", 1, true)
+            or message:find("403", 1, true)
+            or message:find("não possui request", 1, true) then
+            regionApiUnavailable = true
+        end
+        region = nil
+    end
+
+    regionCache[server.id] = {
+        time = os.time(),
+        region = region,
+    }
+    return region
+end
 
 local function serverScore(server, mode)
     local playing = tonumber(server.playing) or 0
@@ -774,6 +1215,41 @@ local function chooseServer(mode)
     local servers, fetchError = collectServers()
     if #servers == 0 then
         return nil, fetchError or "Nenhum servidor disponível foi encontrado."
+    end
+
+    if mode == "brazil" then
+        if regionApiUnavailable then
+            return nil, "A API de região do Roblox bloqueou a consulta. O servidor BR não pode ser confirmado com segurança."
+        end
+
+        local brazilServers = {}
+        local checked = 0
+        for _, server in ipairs(servers) do
+            if checked >= Config.maxRegionChecks then
+                break
+            end
+            if regionApiUnavailable then
+                return nil, "A API de região do Roblox bloqueou a consulta. O servidor BR não pode ser confirmado com segurança."
+            end
+
+            checked = checked + 1
+            setStatus(
+                SearchStatus,
+                "Localizando servidores brasileiros sem amigos... " .. checked .. "/" .. Config.maxRegionChecks,
+                Color3.fromRGB(225, 210, 110)
+            )
+            local region = getServerRegion(server)
+            if region and region.countryCode == "BR" then
+                server.region = region
+                table.insert(brazilServers, server)
+            end
+            task.wait(0.05)
+        end
+
+        if #brazilServers == 0 then
+            return nil, "Não encontrei servidor brasileiro livre de amigos. A API pode estar bloqueada ou sem resultados."
+        end
+        servers = brazilServers
     end
 
     if mode == "random" then
@@ -1226,7 +1702,7 @@ create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 36),
     Position = UDim2.fromOffset(16, 49),
     BackgroundTransparency = 1,
-    Text = "BR deixa a escolha da nova instância para o matchmaking padrão do Roblox.",
+    Text = "BR confirma o país do servidor. As buscas ignoram servidores onde seus amigos estão.",
     TextColor3 = Color3.fromRGB(165, 170, 190),
     TextSize = 12,
     TextWrapped = true,
@@ -1266,7 +1742,7 @@ local function searchButton(text, position, color)
     return button
 end
 
-local BRButton = searchButton("Servidor BR*", UDim2.fromOffset(0, 88), Color3.fromRGB(0, 145, 75))
+local BRButton = searchButton("Servidor BR", UDim2.fromOffset(0, 88), Color3.fromRGB(0, 145, 75))
 local ENButton = searchButton("English Server", UDim2.fromOffset(220, 88), Color3.fromRGB(65, 70, 88))
 disableButton(ENButton, Color3.fromRGB(65, 70, 88))
 create("TextLabel", {
@@ -1515,7 +1991,7 @@ create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 28),
     Position = UDim2.fromOffset(14, 43),
     BackgroundTransparency = 1,
-    Text = "Escolha o tema da interface. A seleção é salva automaticamente.",
+    Text = "Escolha entre 10 temas. Role a lista para ver todas as opções.",
     TextColor3 = Color3.fromRGB(165, 170, 190),
     TextSize = 12,
     Font = Enum.Font.SourceSans,
@@ -1533,11 +2009,35 @@ ThemeStatus = create("TextLabel", {
     TextXAlignment = Enum.TextXAlignment.Left,
 }, ConfigsCard)
 
-local function themeOption(name, position)
+local ThemeList = create("ScrollingFrame", {
+    Size = UDim2.new(1, -28, 1, -179),
+    Position = UDim2.fromOffset(14, 100),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    CanvasSize = UDim2.fromOffset(0, 0),
+    ScrollBarThickness = 4,
+    ScrollBarImageColor3 = Color3.fromRGB(75, 218, 225),
+    ScrollingDirection = Enum.ScrollingDirection.Y,
+}, ConfigsCard)
+local ThemeGrid = create("UIGridLayout", {
+    CellSize = UDim2.new(0.5, -6, 0, 62),
+    CellPadding = UDim2.fromOffset(8, 8),
+    SortOrder = Enum.SortOrder.LayoutOrder,
+}, ThemeList)
+create("UIPadding", {
+    PaddingLeft = UDim.new(0, 2),
+    PaddingRight = UDim.new(0, 2),
+    PaddingTop = UDim.new(0, 2),
+}, ThemeList)
+ThemeGrid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    ThemeList.CanvasSize = UDim2.fromOffset(0, ThemeGrid.AbsoluteContentSize.Y + 8)
+end)
+
+local function themeOption(name, order)
     local theme = Themes[name]
     local button = create("TextButton", {
-        Size = UDim2.fromOffset(188, 62),
-        Position = position,
+        Size = UDim2.new(0.5, -6, 0, 62),
+        LayoutOrder = order,
         BackgroundColor3 = Color3.fromRGB(40, 43, 57),
         Text = theme.label .. "\n" .. theme.description,
         TextColor3 = Color3.fromRGB(245, 248, 255),
@@ -1547,9 +2047,13 @@ local function themeOption(name, position)
         TextYAlignment = Enum.TextYAlignment.Center,
         Font = Enum.Font.SourceSansBold,
         AutoButtonColor = false,
-    }, ConfigsCard)
+    }, ThemeList)
     corner(button, 9)
     stroke(button, Color3.fromRGB(70, 93, 125), 1, 0.45)
+    create("UIPadding", {
+        PaddingLeft = UDim.new(0, 10),
+        PaddingRight = UDim.new(0, 24),
+    }, button)
 
     local preview = create("Frame", {
         Size = UDim2.fromOffset(10, 40),
@@ -1589,14 +2093,20 @@ local function themeOption(name, position)
     end)
 end
 
-themeOption("Midnight", UDim2.fromOffset(14, 102))
-themeOption("Ocean", UDim2.fromOffset(211, 102))
-themeOption("Emerald", UDim2.fromOffset(14, 174))
-themeOption("Sunset", UDim2.fromOffset(211, 174))
+themeOption("Midnight", 1)
+themeOption("Ocean", 2)
+themeOption("Emerald", 3)
+themeOption("Sunset", 4)
+themeOption("Troll", 5)
+themeOption("Doido", 6)
+themeOption("Colorido", 7)
+themeOption("Louco", 8)
+themeOption("FakeErrors", 9)
+themeOption("WindowsClassic", 10)
 
 local ConfigSaveButton = create("TextButton", {
     Size = UDim2.fromOffset(188, 38),
-    Position = UDim2.fromOffset(14, 252),
+    Position = UDim2.new(0, 14, 1, -72),
     BackgroundColor3 = Color3.fromRGB(0, 135, 190),
     Text = "SALVAR CONFIGURAÇÃO",
     TextColor3 = Color3.fromRGB(255, 255, 255),
@@ -1617,11 +2127,10 @@ ConfigSaveButton.MouseButton1Click:Connect(function()
 end)
 
 create("TextLabel", {
-    Size = UDim2.new(1, -28, 0, 58),
-    Position = UDim2.fromOffset(14, 306),
+    Size = UDim2.new(1, -28, 0, 28),
+    Position = UDim2.new(0, 14, 1, -34),
     BackgroundTransparency = 1,
-    Text = "O arquivo ServerFinder_Config.json é criado na pasta do executor. "
-        .. "Ao executar o script novamente, o último tema salvo será carregado.",
+    Text = "Com writefile, a escolha fica salva para a próxima execução.",
     TextColor3 = Color3.fromRGB(120, 145, 170),
     TextSize = 11,
     TextWrapped = true,
@@ -1829,7 +2338,7 @@ local function answer(rawMessage)
     end
     if hasAny(text, {"idioma", "brasil", "br", "english", "inglês"}) then
         ChatState.lastIntent = "language"
-        return "O botão BR pede ao matchmaking padrão do Roblox para escolher a nova instância; o script não escolhe um servidor por ID."
+        return "O botão BR confirma o país do servidor antes de entrar. As buscas comuns removem servidores onde seus amigos estão."
     end
     if hasAny(text, {"servidor aleatório", "servidor aleatorio", "qualquer servidor"}) then
         ChatState.lastIntent = "search"
@@ -2184,8 +2693,8 @@ create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 44),
     Position = UDim2.fromOffset(14, 34),
     BackgroundTransparency = 1,
-    Text = "O botão BR usa o matchmaking padrão do Roblox.\n"
-        .. "O script não escolhe uma instância por ID nem confirma o país.",
+    Text = "O botão BR verifica o país antes do teleporte e não entra em servidores com amigos.\n"
+        .. "Se a API bloquear a verificação, a busca falha sem escolher outro país.",
     TextColor3 = Color3.fromRGB(210, 215, 225),
     TextSize = 11,
     TextWrapped = true,
@@ -2741,11 +3250,33 @@ loadingConnection = RunService.RenderStepped:Connect(function(delta)
 end)
 
 -- Teleporte e busca verificada.
-local function teleport(server)
+local function teleport(server, excludeFriendServers)
     local instanceId = type(server) == "table" and (server.id or server.gameId)
     if type(instanceId) ~= "string" or instanceId == "" then
         setStatus(SearchStatus, "O servidor selecionado não possui um ID válido.", Color3.fromRGB(240, 130, 130))
         return false
+    end
+
+    if excludeFriendServers then
+        friendServerCache = nil
+        friendServerCacheAt = 0
+        local friendsOk, currentFriendServers = pcall(getFriendServerIds)
+        if not friendsOk then
+            setStatus(
+                SearchStatus,
+                "Não consegui confirmar os servidores dos seus amigos; teleporte cancelado.",
+                Color3.fromRGB(240, 130, 130)
+            )
+            return false
+        end
+        if currentFriendServers[instanceId] then
+            setStatus(
+                SearchStatus,
+                "Um amigo entrou nesse servidor durante a confirmação. Vou procurar outro.",
+                Color3.fromRGB(225, 210, 110)
+            )
+            return false
+        end
     end
 
     blacklist[instanceId] = os.time() + Config.blacklistTime
@@ -2921,6 +3452,8 @@ runSearch = function(mode, label)
     end
 
     searching = true
+    friendServerCache = nil
+    friendServerCacheAt = 0
     if mode == "matchmaking" then
         showLoading("Aguardando o matchmaking do Roblox...")
     else
@@ -2932,7 +3465,7 @@ runSearch = function(mode, label)
         local cancelled = false
         local failureMessage
         local ok, searchError = pcall(function()
-            local maxAttempts = mode == "matchmaking" and 1 or 5
+            local maxAttempts = mode == "matchmaking" and 1 or (mode == "brazil" and 2 or 5)
             for attempt = 1, maxAttempts do
                 if destroyed then
                     break
@@ -2973,6 +3506,10 @@ runSearch = function(mode, label)
                 local server, selectionError = chooseServer(mode)
                 if server then
                     local selectionText = "Selecionado: " .. server.playing .. "/" .. server.maxPlayers
+                    if mode == "brazil" and server.region then
+                        local city = server.region.city ~= "" and server.region.city .. ", " or ""
+                        selectionText = selectionText .. " • " .. city .. server.region.country
+                    end
                     setStatus(
                         SearchStatus,
                         selectionText,
@@ -2980,7 +3517,7 @@ runSearch = function(mode, label)
                     )
                     if askTeleportConfirmation(server, label) then
                         showLoading("Conectando ao servidor...")
-                        if teleport(server) then
+                        if teleport(server, true) then
                             connected = true
                             break
                         end
@@ -3017,7 +3554,7 @@ runSearch = function(mode, label)
     end)
 end
 BRButton.MouseButton1Click:Connect(function()
-    runSearch("matchmaking", "Servidor BR*")
+    runSearch("brazil", "Servidor BR")
 end)
 RandomButton.MouseButton1Click:Connect(function()
     runSearch("random", "servidor aleatório")
