@@ -1226,7 +1226,7 @@ create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 36),
     Position = UDim2.fromOffset(16, 49),
     BackgroundTransparency = 1,
-    Text = "Escolha uma estratégia. BR/EN são rótulos; a API não informa o idioma do servidor.",
+    Text = "BR deixa a escolha da nova instância para o matchmaking padrão do Roblox.",
     TextColor3 = Color3.fromRGB(165, 170, 190),
     TextSize = 12,
     TextWrapped = true,
@@ -1425,14 +1425,19 @@ corner(TeleportContinueButton, 8)
 styleButton(TeleportContinueButton, Color3.fromRGB(0, 145, 185), Color3.fromRGB(25, 175, 215))
 
 local teleportDecision
-local function askTeleportConfirmation(server, context)
+local function askTeleportConfirmation(server, context, matchmaking)
     local playing = tonumber(server and server.playing)
     local maximum = tonumber(server and server.maxPlayers)
     local occupancy = playing and maximum and (tostring(playing) .. "/" .. tostring(maximum)) or "disponível"
     local target = context or "um novo servidor"
 
-    TeleportConfirmMessage.Text = "Encontrei " .. target .. " (" .. occupancy .. ").\n"
-        .. "Você quer sair deste servidor e continuar para o destino encontrado?"
+    if matchmaking then
+        TeleportConfirmMessage.Text = "O Roblox vai escolher uma nova instância pelo matchmaking padrão.\n"
+            .. "Você quer sair deste servidor e continuar?"
+    else
+        TeleportConfirmMessage.Text = "Encontrei " .. target .. " (" .. occupancy .. ").\n"
+            .. "Você quer sair deste servidor e continuar para o destino encontrado?"
+    end
     teleportDecision = nil
     TeleportConfirmPopup.Visible = true
 
@@ -1824,7 +1829,7 @@ local function answer(rawMessage)
     end
     if hasAny(text, {"idioma", "brasil", "br", "english", "inglês"}) then
         ChatState.lastIntent = "language"
-        return "BR e English usam a mesma busca; a API pública não informa o idioma do servidor."
+        return "O botão BR pede ao matchmaking padrão do Roblox para escolher a nova instância; o script não escolhe um servidor por ID."
     end
     if hasAny(text, {"servidor aleatório", "servidor aleatorio", "qualquer servidor"}) then
         ChatState.lastIntent = "search"
@@ -2179,8 +2184,8 @@ create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 44),
     Position = UDim2.fromOffset(14, 34),
     BackgroundTransparency = 1,
-    Text = "A API pública não informa o país ou idioma do servidor.\n"
-        .. "Os rótulos BR/EN não garantem a região ou o idioma.",
+    Text = "O botão BR usa o matchmaking padrão do Roblox.\n"
+        .. "O script não escolhe uma instância por ID nem confirma o país.",
     TextColor3 = Color3.fromRGB(210, 215, 225),
     TextSize = 11,
     TextWrapped = true,
@@ -2916,14 +2921,18 @@ runSearch = function(mode, label)
     end
 
     searching = true
-    showLoading("Buscando " .. label .. "...")
+    if mode == "matchmaking" then
+        showLoading("Aguardando o matchmaking do Roblox...")
+    else
+        showLoading("Buscando " .. label .. "...")
+    end
 
     task.spawn(function()
         local connected = false
         local cancelled = false
         local failureMessage
         local ok, searchError = pcall(function()
-            local maxAttempts = 5
+            local maxAttempts = mode == "matchmaking" and 1 or 5
             for attempt = 1, maxAttempts do
                 if destroyed then
                     break
@@ -2933,6 +2942,34 @@ runSearch = function(mode, label)
                     label .. " • tentativa " .. attempt .. "/" .. maxAttempts,
                     Color3.fromRGB(225, 210, 110)
                 )
+                if mode == "matchmaking" then
+                    setStatus(
+                        SearchStatus,
+                        "Pedindo ao Roblox para escolher a nova instância...",
+                        Color3.fromRGB(225, 210, 110)
+                    )
+                    if askTeleportConfirmation(nil, label, true) then
+                        showLoading("Entrando pelo matchmaking do Roblox...")
+                        local requested, requestError = pcall(function()
+                            TeleportService:Teleport(PLACE_ID)
+                        end)
+                        if requested then
+                            connected = true
+                            setStatus(
+                                SearchStatus,
+                                "Matchmaking iniciado; o Roblox escolhe a instância automaticamente.",
+                                Color3.fromRGB(165, 215, 240)
+                            )
+                        else
+                            failureMessage = "Não consegui iniciar o matchmaking do Roblox: " .. tostring(requestError)
+                        end
+                    else
+                        cancelled = true
+                        setStatus(SearchStatus, "Teleporte cancelado.", Color3.fromRGB(225, 210, 110))
+                    end
+                    break
+                end
+
                 local server, selectionError = chooseServer(mode)
                 if server then
                     local selectionText = "Selecionado: " .. server.playing .. "/" .. server.maxPlayers
@@ -2980,7 +3017,7 @@ runSearch = function(mode, label)
     end)
 end
 BRButton.MouseButton1Click:Connect(function()
-    runSearch("full", "servidor BR*")
+    runSearch("matchmaking", "Servidor BR*")
 end)
 RandomButton.MouseButton1Click:Connect(function()
     runSearch("random", "servidor aleatório")
