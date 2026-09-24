@@ -52,7 +52,6 @@ end
 local BASE_WIDTH = 720
 local BASE_HEIGHT = 460
 local MIN_SCALE = 0.55
-local MAX_SCALE = 1
 local MAX_USER_SCALE = 1.35
 local CREATOR_USERNAME = "mateus_15600"
 local CREATOR_PROFILE_URL = "https://www.roblox.com/users/profile?username=" .. CREATOR_USERNAME
@@ -473,6 +472,7 @@ local followUnlocked = false
 local followChecking = false
 local followGateVisible = true
 local FOLLOW_LOADING_MIN_SECONDS = 3
+local FOLLOW_RECHECK_INTERVAL = 30
 local followGateStartedAt = os.clock()
 local currentScale = 1
 local manualScale = 1
@@ -684,6 +684,7 @@ local function getServers(cursor)
         url = url .. "&cursor=" .. urlEncode(cursor)
     end
 
+    local lastError = "A API não retornou uma lista válida de servidores."
     for attempt = 1, 3 do
         local ok, body = pcall(function()
             return httpGet(url)
@@ -695,11 +696,14 @@ local function getServers(cursor)
             if decoded and type(data.data) == "table" then
                 return data
             end
+            lastError = decoded and "A API não retornou uma lista válida de servidores." or tostring(data)
+        else
+            lastError = tostring(body)
         end
         task.wait(attempt * 0.5)
     end
 
-    return nil
+    return nil, lastError
 end
 
 local function isAvailable(server)
@@ -733,9 +737,9 @@ local function collectServers(maxPages)
             return {}
         end
 
-        local data = getServers(cursor)
+        local data, fetchError = getServers(cursor)
         if not data then
-            break
+            return result, fetchError
         end
 
         for _, server in ipairs(data.data) do
@@ -802,7 +806,7 @@ end
 local function lookupIpRegion(ip)
     local urls = {
         "https://ipwho.is/" .. tostring(ip),
-        "http://ip-api.com/json/" .. tostring(ip)
+        "https://ip-api.com/json/" .. tostring(ip)
             .. "?fields=status,countryCode,country,city",
     }
 
@@ -877,9 +881,9 @@ local function serverScore(server, mode)
 end
 
 local function chooseServer(mode)
-    local servers = collectServers()
+    local servers, fetchError = collectServers()
     if #servers == 0 then
-        return nil, "Nenhum servidor disponível foi encontrado."
+        return nil, fetchError or "Nenhum servidor disponível foi encontrado."
     end
 
     if mode == "brazil" then
@@ -930,7 +934,13 @@ local function chooseServer(mode)
         end
     end
 
-    return selected or servers[1], nil
+    if selected then
+        return selected, nil
+    end
+    if mode == "full" then
+        return nil, "Não encontrei um servidor com ocupação alta e vagas disponíveis. Tente o servidor aleatório."
+    end
+    return servers[1], nil
 end
 
 -- Localização da GUI.
@@ -1009,12 +1019,13 @@ local function applyResponsiveScale()
     end
 
     local viewport = getViewport()
-    local widthScale = (viewport.X - 24) / BASE_WIDTH
-    local heightScale = (viewport.Y - 24) / BASE_HEIGHT
-    local fitScale = math.min(widthScale, heightScale)
-    local responsiveScale = clamp(fitScale, MIN_SCALE, MAX_SCALE)
-    local maximumAllowed = math.max(MIN_SCALE, math.min(MAX_USER_SCALE, fitScale))
-    currentScale = clamp(responsiveScale * manualScale, MIN_SCALE, maximumAllowed)
+    local baseWidth = math.max(1, Window.Size.X.Offset)
+    local baseHeight = math.max(1, Window.Size.Y.Offset)
+    local widthScale = math.max(1, viewport.X - 24) / baseWidth
+    local heightScale = math.max(1, viewport.Y - 24) / baseHeight
+    local fitScale = math.max(0.1, math.min(widthScale, heightScale))
+    local maximumAllowed = math.min(MAX_USER_SCALE, fitScale)
+    currentScale = math.min(math.max(0.1, manualScale), maximumAllowed)
     WindowScale.Scale = currentScale
 end
 
@@ -1922,8 +1933,10 @@ local function answer(rawMessage)
     local text = string.lower(original)
     ChatState.turnCount = ChatState.turnCount + 1
 
-    local name = text:match("meu nome é%s+(.+)")
-        or text:match("meu nome e%s+(.+)")
+    local name = original:match("[Mm][Ee][Uu] [Nn][Oo][Mm][Ee] é%s+(.+)")
+        or original:match("[Mm][Ee][Uu] [Nn][Oo][Mm][Ee] É%s+(.+)")
+        or original:match("[Mm][Ee][Uu] [Nn][Oo][Mm][Ee] e%s+(.+)")
+        or original:match("[Mm][Ee][Uu] [Nn][Oo][Mm][Ee] E%s+(.+)")
     if name and #name > 1 then
         Config.userName = name:gsub("^%s+", ""):gsub("%s+$", "")
         ChatState.lastIntent = "profile"
@@ -2838,7 +2851,7 @@ end)
 -- Mantém o estado sincronizado: seguir libera sozinho; deixar de seguir mostra o bloqueio.
 task.spawn(function()
     while not destroyed do
-        task.wait(8)
+        task.wait(FOLLOW_RECHECK_INTERVAL)
         if not destroyed and not searching then
             checkFollowGate(true)
         end
@@ -2903,8 +2916,14 @@ local function teleport(server)
     end
 
     if not attemptConnection then
-        task.wait(8)
-        return not teleportFailed
+        local fallbackDeadline = os.clock() + 12
+        while not teleportFailed and not destroyed and os.clock() < fallbackDeadline do
+            task.wait(0.1)
+        end
+        if not teleportFailed and not destroyed then
+            setStatus(SearchStatus, "Não foi possível confirmar o início do teleporte.", Color3.fromRGB(240, 130, 130))
+        end
+        return false
     end
 
     local deadline = os.clock() + 12
