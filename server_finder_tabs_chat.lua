@@ -465,6 +465,9 @@ local regionApiUnavailable = false
 local searching = false
 local teleportFailed = false
 local destroyed = false
+local loadingConnection
+local inputChangedConnection
+local teleportInitFailedConnection
 local creatorUserId
 local followUnlocked = false
 local followChecking = false
@@ -578,7 +581,43 @@ local function getRequester()
     return nil
 end
 
+local HTTP_TIMEOUT = 12
+
+local function responseBody(response)
+    if type(response) == "string" then
+        if response ~= "" then
+            return response
+        end
+        error("Resposta HTTP vazia.")
+    end
+    if type(response) == "table" then
+        local status = tonumber(response.StatusCode or response.Status) or 200
+        if status >= 400 then
+            error("Erro HTTP " .. tostring(status))
+        end
+        local body = response.Body or response.body
+        if type(body) == "string" and body ~= "" then
+            return body
+        end
+    end
+    error("Resposta HTTP inválida ou vazia.")
+end
+
 local function httpGet(url)
+    local requester = getRequester()
+    if requester then
+        local ok, response = pcall(requester, {
+            Url = url,
+            Method = "GET",
+            Timeout = HTTP_TIMEOUT,
+        })
+        if not ok then
+            error(response)
+        end
+        return responseBody(response)
+    end
+
+    -- HttpGet fica como fallback apenas para executores sem request disponível.
     if type(game.HttpGet) == "function" then
         local ok, result = pcall(function()
             return game:HttpGet(url)
@@ -586,29 +625,9 @@ local function httpGet(url)
         if ok and type(result) == "string" and result ~= "" then
             return result
         end
+        error(result or "Falha ao consultar a URL.")
     end
-
-    local requester = getRequester()
-    if not requester then
-        error("O executor não possui uma função HTTP.")
-    end
-
-    local response = requester({
-        Url = url,
-        Method = "GET",
-    })
-
-    if type(response) == "string" then
-        return response
-    end
-    if type(response) == "table" then
-        local status = tonumber(response.StatusCode or response.Status) or 200
-        if status >= 400 then
-            error("Erro HTTP " .. tostring(status))
-        end
-        return response.Body or response.body
-    end
-    error("Resposta HTTP inválida.")
+    error("O executor não possui uma função HTTP.")
 end
 
 local function httpRequest(url, method, body)
@@ -624,19 +643,9 @@ local function httpRequest(url, method, body)
             ["Content-Type"] = "application/json",
         },
         Body = body,
+        Timeout = HTTP_TIMEOUT,
     })
-
-    if type(response) == "string" then
-        return response
-    end
-    if type(response) == "table" then
-        local status = tonumber(response.StatusCode or response.Status) or 200
-        if status >= 400 then
-            error("Erro HTTP " .. tostring(status))
-        end
-        return response.Body or response.body
-    end
-    error("Resposta HTTP inválida.")
+    return responseBody(response)
 end
 
 local function decodeJson(body, message)
@@ -935,6 +944,18 @@ end)
 if not guiAttached or not Gui.Parent then
     Gui.Parent = Player:WaitForChild("PlayerGui")
 end
+
+-- Destruir/reexecutar a interface encerra conexões globais e tarefas desta instância.
+Gui.Destroying:Connect(function()
+    destroyed = true
+    for _, connection in pairs({loadingConnection, inputChangedConnection, teleportInitFailedConnection}) do
+        if connection then
+            pcall(function()
+                connection:Disconnect()
+            end)
+        end
+    end
+end)
 
 local Window = create("Frame", {
     Size = UDim2.fromOffset(BASE_WIDTH, BASE_HEIGHT),
@@ -1793,6 +1814,9 @@ local SendButton = create("TextButton", {
 corner(SendButton, 9)
 styleButton(SendButton, Color3.fromRGB(0, 135, 190), Color3.fromRGB(25, 165, 215))
 
+local ChatMessages = {}
+local MAX_CHAT_MESSAGES = 80
+
 local function addMessage(author, text, color)
     local message = create("TextLabel", {
         Size = UDim2.new(1, -18, 0, 0),
@@ -1806,6 +1830,13 @@ local function addMessage(author, text, color)
         Font = Enum.Font.SourceSans,
     }, ChatLog)
     corner(message, 8)
+    table.insert(ChatMessages, message)
+    if #ChatMessages > MAX_CHAT_MESSAGES then
+        local oldest = table.remove(ChatMessages, 1)
+        if oldest and oldest.Parent then
+            oldest:Destroy()
+        end
+    end
 end
 
 local function clearChat()
@@ -1814,6 +1845,7 @@ local function clearChat()
             child:Destroy()
         end
     end
+    ChatMessages = {}
 end
 
 ChatLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
@@ -2597,6 +2629,12 @@ local function queryCreatorFollow()
     -- Esta rota pública não exige cookie do Roblox. A consulta paginada
     -- evita depender de /user/following-exists, que exige autenticação web.
     for page = 1, 50 do
+        if destroyed then
+            error("Verificação cancelada.")
+        end
+        if not followUnlocked and FollowStatus and FollowStatus.Parent then
+            FollowStatus.Text = "Verificando sua lista de follows... " .. page .. "/50"
+        end
         local url = "https://friends.roblox.com/v1/users/"
             .. tostring(Player.UserId)
             .. "/followings?sortOrder=Asc&limit=100"
@@ -2786,14 +2824,18 @@ task.spawn(function()
     end
 end)
 
-local loadingConnection
+local lastViewport
 loadingConnection = RunService.RenderStepped:Connect(function(delta)
     if destroyed then
         loadingConnection:Disconnect()
         return
     end
-    applyResponsiveScale()
-    clampWindowToViewport()
+    local viewport = getViewport()
+    if not lastViewport or viewport.X ~= lastViewport.X or viewport.Y ~= lastViewport.Y then
+        lastViewport = viewport
+        applyResponsiveScale()
+        clampWindowToViewport()
+    end
     if Loading.Visible and not loadingFinishing and not followChecking and not followUnlocked then
         loadingProgress = math.min(1, loadingProgress + delta * 0.18)
         LoadingBarFill.Size = UDim2.new(loadingProgress, 0, 1, 0)
@@ -2803,23 +2845,70 @@ end)
 
 -- Teleporte e busca verificada.
 local function teleport(server)
-    blacklist[server.id] = os.time() + Config.blacklistTime
+    local instanceId = type(server) == "table" and (server.id or server.gameId)
+    if type(instanceId) ~= "string" or instanceId == "" then
+        setStatus(SearchStatus, "O servidor selecionado não possui um ID válido.", Color3.fromRGB(240, 130, 130))
+        return false
+    end
+
+    blacklist[instanceId] = os.time() + Config.blacklistTime
     teleportFailed = false
+    local teleportStarted = false
+    local teleportStartedAt
+    local attemptConnection
+    pcall(function()
+        attemptConnection = Player.OnTeleport:Connect(function(state)
+            local stateName = tostring(state)
+            if stateName:find("Started", 1, true)
+                or stateName:find("WaitingForServer", 1, true)
+                or stateName:find("InProgress", 1, true) then
+                teleportStarted = true
+                teleportStartedAt = teleportStartedAt or os.clock()
+            elseif stateName:find("Failed", 1, true) then
+                teleportFailed = true
+            end
+        end)
+    end)
 
     local ok, errorMessage = pcall(function()
-        TeleportService:TeleportToPlaceInstance(PLACE_ID, server.id, Player)
+        TeleportService:TeleportToPlaceInstance(PLACE_ID, instanceId, Player)
     end)
     if not ok then
+        if attemptConnection then
+            attemptConnection:Disconnect()
+        end
         setStatus(SearchStatus, "Falha ao iniciar: " .. tostring(errorMessage), Color3.fromRGB(240, 130, 130))
         return false
     end
 
-    task.wait(8)
-    return not teleportFailed
+    if not attemptConnection then
+        task.wait(8)
+        return not teleportFailed
+    end
+
+    local deadline = os.clock() + 12
+    while not teleportFailed and not destroyed and os.clock() < deadline do
+        local startupConfirmed = teleportStarted
+            and teleportStartedAt
+            and os.clock() - teleportStartedAt >= 1.5
+        if startupConfirmed then
+            break
+        end
+        task.wait(0.1)
+    end
+    attemptConnection:Disconnect()
+
+    if teleportStarted and not teleportFailed then
+        return true
+    end
+    if not teleportFailed and not destroyed then
+        setStatus(SearchStatus, "O teleporte não começou dentro do tempo esperado. Tente outro servidor.", Color3.fromRGB(240, 130, 130))
+    end
+    return false
 end
 
 pcall(function()
-    TeleportService.TeleportInitFailed:Connect(function(player, result)
+    teleportInitFailedConnection = TeleportService.TeleportInitFailed:Connect(function(player, result)
         if player == Player then
             teleportFailed = true
             setStatus(SearchStatus, "Teleporte recusado: " .. tostring(result), Color3.fromRGB(240, 130, 130))
@@ -2935,46 +3024,51 @@ runSearch = function(mode, label)
         local connected = false
         local cancelled = false
         local failureMessage
-        local maxAttempts = mode == "brazil" and 2 or 5
-        for attempt = 1, maxAttempts do
-            if destroyed then
-                break
-            end
-            setStatus(
-                SearchStatus,
-                label .. " • tentativa " .. attempt .. "/" .. maxAttempts,
-                Color3.fromRGB(225, 210, 110)
-            )
-            local server, selectionError = chooseServer(mode)
-            if server then
+        local ok, searchError = pcall(function()
+            local maxAttempts = mode == "brazil" and 2 or 5
+            for attempt = 1, maxAttempts do
+                if destroyed then
+                    break
+                end
                 setStatus(
                     SearchStatus,
-                    "Selecionado: " .. server.playing .. "/" .. server.maxPlayers,
-                    Color3.fromRGB(165, 215, 240)
+                    label .. " • tentativa " .. attempt .. "/" .. maxAttempts,
+                    Color3.fromRGB(225, 210, 110)
                 )
-                if askTeleportConfirmation(server, label) then
-                    showLoading("Conectando ao servidor...")
-                    if teleport(server) then
-                        connected = true
+                local server, selectionError = chooseServer(mode)
+                if server then
+                    setStatus(
+                        SearchStatus,
+                        "Selecionado: " .. server.playing .. "/" .. server.maxPlayers,
+                        Color3.fromRGB(165, 215, 240)
+                    )
+                    if askTeleportConfirmation(server, label) then
+                        showLoading("Conectando ao servidor...")
+                        if teleport(server) then
+                            connected = true
+                            break
+                        end
+                    else
+                        cancelled = true
+                        setStatus(SearchStatus, "Teleporte cancelado.", Color3.fromRGB(225, 210, 110))
                         break
                     end
                 else
-                    cancelled = true
-                    setStatus(SearchStatus, "Teleporte cancelado.", Color3.fromRGB(225, 210, 110))
+                    failureMessage = selectionError
+                    setStatus(
+                        SearchStatus,
+                        failureMessage or "Não foi possível encontrar um servidor.",
+                        Color3.fromRGB(240, 130, 130)
+                    )
                     break
                 end
-            else
-                failureMessage = selectionError
-                setStatus(
-                    SearchStatus,
-                    failureMessage or "Não foi possível encontrar um servidor.",
-                    Color3.fromRGB(240, 130, 130)
-                )
-                break
+                task.wait(1)
             end
-            task.wait(1)
-        end
+        end)
 
+        if not ok then
+            failureMessage = "A busca foi interrompida: " .. tostring(searchError)
+        end
         searching = false
         hideLoading()
         if not connected and not cancelled then
@@ -2986,9 +3080,8 @@ runSearch = function(mode, label)
         end
     end)
 end
-
 BRButton.MouseButton1Click:Connect(function()
-    runSearch("full", "servidor BR*")
+    runSearch("brazil", "servidor BR")
 end)
 RandomButton.MouseButton1Click:Connect(function()
     runSearch("random", "servidor aleatório")
@@ -3030,7 +3123,7 @@ ResizeGrip.InputBegan:Connect(function(input)
     end
 end)
 
-UserInputService.InputChanged:Connect(function(input)
+inputChangedConnection = UserInputService.InputChanged:Connect(function(input)
     local isPointerMove = input.UserInputType == Enum.UserInputType.MouseMovement
         or input.UserInputType == Enum.UserInputType.Touch
     if dragging and isPointerMove then
