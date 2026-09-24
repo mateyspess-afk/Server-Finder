@@ -1219,7 +1219,7 @@ local function chooseServer(mode)
 
     if mode == "brazil" then
         if regionApiUnavailable then
-            return nil, "Consulta de IP bloqueada ou endereco do servidor nao exposto. Use Matchmaking Roblox; Brasil nao e garantido."
+            return nil, "A API de região do Roblox bloqueou a consulta. O servidor BR não pode ser confirmado com segurança."
         end
 
         local brazilServers = {}
@@ -1229,7 +1229,7 @@ local function chooseServer(mode)
                 break
             end
             if regionApiUnavailable then
-                return nil, "Consulta de IP bloqueada ou endereco do servidor nao exposto. Use Matchmaking Roblox; Brasil nao e garantido."
+                return nil, "A API de região do Roblox bloqueou a consulta. O servidor BR não pode ser confirmado com segurança."
             end
 
             checked = checked + 1
@@ -1247,7 +1247,7 @@ local function chooseServer(mode)
         end
 
         if #brazilServers == 0 then
-            return nil, "Nao confirmei servidor BR pelo IP nas instancias verificadas. Use Matchmaking Roblox; pais nao e garantido."
+            return nil, "Não encontrei servidor brasileiro livre de amigos. A API pode estar bloqueada ou sem resultados."
         end
         servers = brazilServers
     end
@@ -1742,14 +1742,15 @@ local function searchButton(text, position, color)
     return button
 end
 
-local BRButton = searchButton("BR por IP (experimental)", UDim2.fromOffset(0, 88), Color3.fromRGB(0, 145, 75))
-local MatchmakingButton = searchButton("Matchmaking Roblox", UDim2.fromOffset(220, 88), Color3.fromRGB(0, 135, 190))
+local BRButton = searchButton("Servidor BR", UDim2.fromOffset(0, 88), Color3.fromRGB(0, 145, 75))
+local ENButton = searchButton("English Server", UDim2.fromOffset(220, 88), Color3.fromRGB(65, 70, 88))
+disableButton(ENButton, Color3.fromRGB(65, 70, 88))
 create("TextLabel", {
     Size = UDim2.fromOffset(205, 18),
     Position = UDim2.fromOffset(220, 70),
     BackgroundTransparency = 1,
-    Text = "LOCALIZACAO / PING AUTOMATICOS",
-    TextColor3 = Color3.fromRGB(165, 215, 240),
+    Text = "DESATIVADO",
+    TextColor3 = Color3.fromRGB(245, 190, 105),
     TextSize = 10,
     Font = Enum.Font.SourceSansBold,
     TextXAlignment = Enum.TextXAlignment.Center,
@@ -1907,7 +1908,7 @@ local function askTeleportConfirmation(server, context, matchmaking)
     local target = context or "um novo servidor"
 
     if matchmaking then
-        TeleportConfirmMessage.Text = "O Roblox vai escolher uma nova instância pelo matchmaking padrão.\n"
+            TeleportConfirmMessage.Text = "O Roblox escolhe por localizacao e latencia; nao garante servidor brasileiro.\n"
             .. "Você quer sair deste servidor e continuar?"
     else
         TeleportConfirmMessage.Text = "Encontrei " .. target .. " (" .. occupancy .. ").\n"
@@ -3553,10 +3554,7 @@ runSearch = function(mode, label)
     end)
 end
 BRButton.MouseButton1Click:Connect(function()
-    runSearch("brazil", "BR por IP (experimental)")
-end)
-MatchmakingButton.MouseButton1Click:Connect(function()
-    runSearch("matchmaking", "Matchmaking Roblox")
+    runSearch("matchmaking", "Servidor BR")
 end)
 RandomButton.MouseButton1Click:Connect(function()
     runSearch("random", "servidor aleatório")
