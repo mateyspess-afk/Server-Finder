@@ -63,8 +63,6 @@ local Config = {
     userName = Player.DisplayName or Player.Name,
     blacklistTime = 300,
     maxPages = 5,
-    maxRegionChecks = 15,
-    regionCacheTime = 600,
 }
 
 -- Preferências visuais ficam no diretório de arquivos do executor.
@@ -459,8 +457,6 @@ local function applyTheme(name)
 end
 
 local blacklist = {}
-local regionCache = {}
-local regionApiUnavailable = false
 local searching = false
 local teleportFailed = false
 local destroyed = false
@@ -759,113 +755,7 @@ local function collectServers(maxPages)
     return result
 end
 
-local function isIpAddress(value)
-    if type(value) ~= "string" then
-        return false
-    end
-    local a, b, c, d = value:match("^(%d+)%.(%d+)%.(%d+)%.(%d+)$")
-    return a
-        and tonumber(a) <= 255
-        and tonumber(b) <= 255
-        and tonumber(c) <= 255
-        and tonumber(d) <= 255
-end
-
-local function getServerIp(server)
-    local body = httpRequest(
-        "https://gamejoin.roblox.com/v1/join-game-instance",
-        "POST",
-        HttpService:JSONEncode({
-            placeId = PLACE_ID,
-            gameId = server.id,
-            isTeleport = false,
-        })
-    )
-    local data = decodeJson(body, "A API de região retornou um JSON inválido.")
-    local joinScript = data.joinScript
-    if type(joinScript) ~= "table" then
-        return nil
-    end
-
-    local endpoints = joinScript.UdmuxEndpoints
-    if type(endpoints) == "table" then
-        for _, endpoint in ipairs(endpoints) do
-            local address = type(endpoint) == "table" and endpoint.Address
-            if isIpAddress(address) then
-                return address
-            end
-        end
-    end
-
-    if isIpAddress(joinScript.MachineAddress) then
-        return joinScript.MachineAddress
-    end
-    return nil
-end
-
-local function lookupIpRegion(ip)
-    local urls = {
-        "https://ipwho.is/" .. tostring(ip),
-        "https://ip-api.com/json/" .. tostring(ip)
-            .. "?fields=status,countryCode,country,city",
-    }
-
-    for _, url in ipairs(urls) do
-        local ok, body = pcall(function()
-            return httpGet(url)
-        end)
-        if ok and body then
-            local decoded, data = pcall(function()
-                return decodeJson(body)
-            end)
-            if decoded and type(data) == "table" then
-                local countryCode = data.country_code or data.countryCode
-                local country = data.country
-                if data.success ~= false and data.status ~= "fail" and countryCode then
-                    return {
-                        countryCode = string.upper(tostring(countryCode)),
-                        country = tostring(country or countryCode),
-                        city = tostring(data.city or ""),
-                    }
-                end
-            end
-        end
-    end
-    return nil
-end
-
-local function getServerRegion(server)
-    local cached = regionCache[server.id]
-    if cached and os.time() - cached.time < Config.regionCacheTime then
-        return cached.region
-    end
-
-    local ok, result = pcall(function()
-        local ip = getServerIp(server)
-        if not ip then
-            return nil
-        end
-        return lookupIpRegion(ip)
-    end)
-    local region
-    if ok then
-        region = result
-    else
-        local message = string.lower(tostring(result))
-        if message:find("401", 1, true)
-            or message:find("403", 1, true)
-            or message:find("não possui request", 1, true) then
-            regionApiUnavailable = true
-        end
-        region = nil
-    end
-
-    regionCache[server.id] = {
-        time = os.time(),
-        region = region,
-    }
-    return region
-end
+-- A API pública não revela o país do servidor; usamos apenas o ping anunciado como estimativa.
 
 local function serverScore(server, mode)
     local playing = tonumber(server.playing) or 0
@@ -887,35 +777,33 @@ local function chooseServer(mode)
     end
 
     if mode == "brazil" then
-        if regionApiUnavailable then
-            return nil, "A API de região do Roblox bloqueou a consulta. O executor precisa permitir essa consulta autenticada; o servidor BR não pode ser confirmado com segurança."
-        end
-        local brazilServers = {}
-        local checked = 0
+        local selected
+        local lowestPing = math.huge
+
         for _, server in ipairs(servers) do
-            if checked >= Config.maxRegionChecks then
-                break
+            local ping = tonumber(server.ping)
+            if ping and ping > 0 and ping < lowestPing then
+                selected = server
+                lowestPing = ping
             end
-            if regionApiUnavailable then
-                return nil, "A API de região do Roblox bloqueou a consulta. O servidor BR não pode ser confirmado com segurança."
-            end
-            checked = checked + 1
+        end
+
+        if not selected then
             setStatus(
                 SearchStatus,
-                "Localizando servidores brasileiros... " .. checked .. "/" .. Config.maxRegionChecks,
+                "Sem ping divulgado; usando seleção aleatória. A região não foi confirmada.",
                 Color3.fromRGB(225, 210, 110)
             )
-            local region = getServerRegion(server)
-            if region and region.countryCode == "BR" then
-                table.insert(brazilServers, server)
-            end
-            task.wait(0.05)
+            return servers[math.random(1, #servers)], nil
         end
-        if #brazilServers == 0 then
-            return nil,
-                "Não encontrei um servidor brasileiro. A API de região pode estar bloqueada ou sem resultados."
-        end
-        servers = brazilServers
+
+        local reportedPing = math.floor(lowestPing + 0.5)
+        setStatus(
+            SearchStatus,
+            "Estimativa BR pelo menor ping informado: " .. reportedPing .. " ms. País não confirmado.",
+            Color3.fromRGB(225, 210, 110)
+        )
+        return selected, nil
     end
 
     if mode == "random" then
@@ -1368,7 +1256,7 @@ create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 36),
     Position = UDim2.fromOffset(16, 49),
     BackgroundTransparency = 1,
-    Text = "BR verifica a região antes de teleportar; aleatório usa a lista pública do Roblox.",
+    Text = "BR usa o menor ping informado como estimativa; o Roblox não confirma o país do servidor.",
     TextColor3 = Color3.fromRGB(165, 170, 190),
     TextSize = 12,
     TextWrapped = true,
@@ -1408,7 +1296,7 @@ local function searchButton(text, position, color)
     return button
 end
 
-local BRButton = searchButton("Servidor BR", UDim2.fromOffset(0, 88), Color3.fromRGB(0, 145, 75))
+local BRButton = searchButton("BR • menor ping", UDim2.fromOffset(0, 88), Color3.fromRGB(0, 145, 75))
 local ENButton = searchButton("English Server", UDim2.fromOffset(220, 88), Color3.fromRGB(65, 70, 88))
 disableButton(ENButton, Color3.fromRGB(65, 70, 88))
 create("TextLabel", {
@@ -1966,7 +1854,7 @@ local function answer(rawMessage)
     end
     if hasAny(text, {"idioma", "brasil", "br", "english", "inglês"}) then
         ChatState.lastIntent = "language"
-        return "O botão Servidor BR verifica a região por uma API de junção do Roblox. Se o executor bloquear POST, ele avisa em vez de mandar você para uma região aleatória."
+        return "O botão BR escolhe o menor ping divulgado pela lista pública como estimativa; a região real não é confirmada pelo Roblox."
     end
     if hasAny(text, {"servidor aleatório", "servidor aleatorio", "qualquer servidor"}) then
         ChatState.lastIntent = "search"
@@ -2321,8 +2209,8 @@ create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 44),
     Position = UDim2.fromOffset(14, 34),
     BackgroundTransparency = 1,
-    Text = "A API pública não informa a região do servidor.\n"
-        .. "O botão English Server está desativado até existir um filtro confiável.",
+    Text = "A API pública não informa o país do servidor.\n"
+        .. "O botão BR usa o menor ping divulgado como estimativa, sem garantia de Brasil.",
     TextColor3 = Color3.fromRGB(210, 215, 225),
     TextSize = 11,
     TextWrapped = true,
@@ -3077,9 +2965,18 @@ runSearch = function(mode, label)
                 )
                 local server, selectionError = chooseServer(mode)
                 if server then
+                    local selectionText = "Selecionado: " .. server.playing .. "/" .. server.maxPlayers
+                    if mode == "brazil" then
+                        local ping = tonumber(server.ping)
+                        if ping and ping > 0 then
+                            selectionText = selectionText .. " • ping informado: " .. math.floor(ping + 0.5) .. " ms (estimativa)"
+                        else
+                            selectionText = selectionText .. " • sem ping; seleção aleatória"
+                        end
+                    end
                     setStatus(
                         SearchStatus,
-                        "Selecionado: " .. server.playing .. "/" .. server.maxPlayers,
+                        selectionText,
                         Color3.fromRGB(165, 215, 240)
                     )
                     if askTeleportConfirmation(server, label) then
@@ -3121,7 +3018,7 @@ runSearch = function(mode, label)
     end)
 end
 BRButton.MouseButton1Click:Connect(function()
-    runSearch("brazil", "servidor BR")
+    runSearch("brazil", "servidor BR por estimativa de ping")
 end)
 RandomButton.MouseButton1Click:Connect(function()
     runSearch("random", "servidor aleatório")
