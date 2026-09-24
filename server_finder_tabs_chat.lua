@@ -604,6 +604,20 @@ local function responseBody(response)
 end
 
 local function httpGet(url)
+    local lastError
+
+    -- Muitos executores só conseguem consultar as APIs do Roblox via game:HttpGet.
+    if type(game.HttpGet) == "function" then
+        local ok, result = pcall(function()
+            return game:HttpGet(url)
+        end)
+        if ok and type(result) == "string" and result ~= "" then
+            return result
+        end
+        lastError = ok and "A resposta HTTP veio vazia." or result
+    end
+
+    -- request é alternativa com timeout para executores sem HttpGet funcional.
     local requester = getRequester()
     if requester then
         local ok, response = pcall(requester, {
@@ -612,22 +626,16 @@ local function httpGet(url)
             Timeout = HTTP_TIMEOUT,
         })
         if not ok then
-            error(response)
+            error(lastError or response)
         end
-        return responseBody(response)
+        local bodyOk, body = pcall(responseBody, response)
+        if bodyOk then
+            return body
+        end
+        error(body)
     end
 
-    -- HttpGet fica como fallback apenas para executores sem request disponível.
-    if type(game.HttpGet) == "function" then
-        local ok, result = pcall(function()
-            return game:HttpGet(url)
-        end)
-        if ok and type(result) == "string" and result ~= "" then
-            return result
-        end
-        error(result or "Falha ao consultar a URL.")
-    end
-    error("O executor não possui uma função HTTP.")
+    error(lastError or "O executor não possui uma função HTTP.")
 end
 
 local function httpRequest(url, method, body)
@@ -2761,10 +2769,14 @@ local function checkFollowGate(silent)
             LoadingClose.Visible = true
             FollowOpen.Active = true
             FollowCheck.Active = true
-            FollowStatus.Text = "Não foi possível verificar agora. Confira se o executor permite HTTP."
+            local reason = tostring(isFollowing or "erro desconhecido"):gsub("[%c]+", " ")
+            if #reason > 90 then
+                reason = reason:sub(1, 90) .. "..."
+            end
+            FollowStatus.Text = "Falha ao verificar follow: " .. reason
             FollowStatus.TextColor3 = Color3.fromRGB(240, 130, 130)
             LoadingTitle.Text = "Follow necessário"
-            LoadingDetail.Text = "Siga @" .. CREATOR_USERNAME .. " para continuar."
+            LoadingDetail.Text = "Confira o HTTP do executor e tente verificar novamente."
         end
     end)
 end
