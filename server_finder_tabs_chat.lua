@@ -1218,7 +1218,6 @@ local function chooseServer(mode)
         return nil, fetchError or "Nenhum servidor disponível foi encontrado."
     end
 
-    local regionUnverified = false
     if mode == "brazil" then
         local brazilServers = {}
         local checked = 0
@@ -1249,15 +1248,7 @@ local function chooseServer(mode)
         if #brazilServers > 0 then
             servers = brazilServers
         elseif regionCheckBlocked then
-            regionUnverified = true
-            for _, server in ipairs(servers) do
-                server.regionUnverified = true
-            end
-            setStatus(
-                SearchStatus,
-                "IP/regiao indisponivel; buscando servidor cheio. Pais nao confirmado.",
-                Color3.fromRGB(225, 210, 110)
-            )
+            return nil, "A consulta de regiao foi bloqueada; nao foi possivel confirmar um servidor BR. Nenhum teleporte foi feito. Tente novamente mais tarde."
         else
             return nil, "Nao encontrei servidor BR livre de amigos entre os servidores verificados."
         end
@@ -1281,10 +1272,6 @@ local function chooseServer(mode)
 
     if selected then
         return selected, nil
-    end
-    if mode == "brazil" then
-        local detail = regionUnverified and "A regiao nao foi confirmada e nao encontrei servidor com 6+ jogadores e 2 vagas." or "Nao encontrei servidor BR com 6+ jogadores e 2 vagas."
-        return nil, detail
     end
     if mode == "full" then
         return nil, "Não encontrei um servidor com ocupação alta e vagas disponíveis. Tente o servidor aleatório."
@@ -1928,8 +1915,6 @@ local function askTeleportConfirmation(server, context, matchmaking)
     if matchmaking then
             TeleportConfirmMessage.Text = "O Roblox escolhe por localizacao e latencia; nao garante servidor brasileiro.\n"
             .. "Você quer sair deste servidor e continuar?"
-    elseif server and server.regionUnverified then
-        TeleportConfirmMessage.Text = "Nao foi possivel confirmar que este servidor fica no Brasil (" .. occupancy .. "). Amigos e servidores bloqueados foram excluidos. Entrar mesmo assim?"
     else
         TeleportConfirmMessage.Text = "Encontrei " .. target .. " (" .. occupancy .. ").\n"
             .. "Você quer sair deste servidor e continuar para o destino encontrado?"
@@ -3524,10 +3509,13 @@ runSearch = function(mode, label)
                 end
 
                 local server, selectionError = chooseServer(mode)
+                if server and mode == "brazil" and server.regionUnverified then
+                    selectionError = "A regiao do servidor nao foi confirmada. Nenhum teleporte foi feito."
+                    server = nil
+                end
                 if server then
                     local selectionText = "Selecionado: " .. server.playing .. "/" .. server.maxPlayers
-                    if mode == "brazil" and server.regionUnverified then
-                        selectionText = "Regiao BR nao confirmada - " .. selectionText
+                    if mode == "brazil" and server.region then
                     elseif mode == "brazil" and server.region then
                         local city = server.region.city ~= "" and server.region.city .. ", " or ""
                         selectionText = selectionText .. " • " .. city .. server.region.country
