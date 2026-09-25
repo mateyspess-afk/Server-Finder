@@ -681,6 +681,7 @@ _ServerFinderState.friendServerCache = nil
  _ServerFinderState.friendServerCacheAt = 0
  _ServerFinderState.regionCache = {}
  _ServerFinderState.regionApiUnavailable = false
+ _ServerFinderState.regionAuthRequired = false
  _ServerFinderState.searching = false
  _ServerFinderState.teleportFailed = false
  _ServerFinderState.destroyed = false
@@ -869,6 +870,9 @@ _ServerFinderState.httpRequest = function(url, method, body)
         Method = method or "GET",
         Headers = {
             ["Content-Type"] = "application/json",
+            ["Accept"] = "application/json",
+            ["User-Agent"] = "Roblox/WinInet",
+            ["Referer"] = "https://www.roblox.com/",
         },
         Body = body,
         Timeout = _ServerFinderState.HTTP_TIMEOUT,
@@ -882,7 +886,17 @@ _ServerFinderState.httpRequest = function(url, method, body)
     if not ok then
         error(response)
     end
-    return _ServerFinderState.responseBody(response)
+    local bodyOk, responseBody = pcall(_ServerFinderState.responseBody, response)
+    if bodyOk then
+        return responseBody
+    end
+
+    local status = type(response) == "table"
+        and tonumber(response.StatusCode or response.Status)
+    if status == 401 then
+        error("HTTP_STATUS_401: o Roblox exige autenticação para consultar os detalhes deste servidor.")
+    end
+    error(responseBody)
 end
 
 _ServerFinderState.decodeJson = function(body, message)
@@ -1116,6 +1130,8 @@ _ServerFinderState.getServerIp = function(server)
             placeId = _ServerFinderState.PLACE_ID,
             gameId = server.id,
             isTeleport = false,
+            isPlayTogetherGame = false,
+            gameJoinAttemptId = server.id,
         })
     )
     local data = _ServerFinderState.decodeJson(body, "A API de região retornou um JSON inválido.")
@@ -1229,6 +1245,9 @@ _ServerFinderState.getServerRegion = function(server)
         regionError = tostring(result)
         _ServerFinderState.regionApiUnavailable = true
         _ServerFinderState.regionApiError = regionError
+        if regionError:find("HTTP_STATUS_401", 1, true) then
+            _ServerFinderState.regionAuthRequired = true
+        end
     end
 
     _ServerFinderState.regionCache[server.id] = {
@@ -1237,6 +1256,32 @@ _ServerFinderState.getServerRegion = function(server)
         error = regionError,
     }
     return region, regionError
+end
+
+_ServerFinderState.selectApproximateBrazilServer = function(servers)
+    local selected
+    local selectedPing = math.huge
+
+    for _, server in ipairs(servers) do
+        if _ServerFinderState.serverScore(server, "brazil") > -math.huge then
+            local ping = tonumber(server.ping)
+            if ping and ping < selectedPing then
+                selected = server
+                selectedPing = ping
+            end
+        end
+    end
+
+    if selected then
+        selected.region = {
+            countryCode = "BR",
+            country = "Brasil (estimado pela latência)",
+            city = "",
+        }
+        selected.regionApproximate = true
+        selected.regionPing = selectedPing
+    end
+    return selected
 end
 
 _ServerFinderState.serverScore = function(server, mode)
@@ -1256,6 +1301,7 @@ _ServerFinderState.chooseServer = function(mode)
     if mode == "brazil" then
         _ServerFinderState.regionApiUnavailable = false
         _ServerFinderState.regionApiError = nil
+        _ServerFinderState.regionAuthRequired = false
     end
 
     local servers, fetchError = _ServerFinderState.collectServers()
@@ -1280,6 +1326,10 @@ _ServerFinderState.chooseServer = function(mode)
                     Color3.fromRGB(225, 210, 110)
                 )
                 local region = _ServerFinderState.getServerRegion(server)
+                if _ServerFinderState.regionAuthRequired then
+                    regionCheckBlocked = true
+                    break
+                end
                 if _ServerFinderState.regionApiUnavailable then
                     regionCheckBlocked = true
                     break
@@ -1294,6 +1344,12 @@ _ServerFinderState.chooseServer = function(mode)
 
         if #brazilServers > 0 then
             servers = brazilServers
+        elseif _ServerFinderState.regionAuthRequired then
+            local approximateServer = _ServerFinderState.selectApproximateBrazilServer(servers)
+            if approximateServer then
+                return approximateServer, nil
+            end
+            return nil, "O Roblox bloqueou a confirmação exata da região (HTTP 401) e não há servidores com latência disponível para estimativa."
         elseif regionCheckBlocked then
             local detail = _ServerFinderState.regionApiError
             local message = "Não foi possível confirmar a região brasileira. Nenhum teleporte foi feito."
@@ -1967,6 +2023,7 @@ _ServerFinderState.styleButton(_ServerFinderState.TeleportContinueButton, Color3
     BackgroundTransparency = 0.3,
     BorderSizePixel = 0,
     Active = true,
+    Visible = false,
     ZIndex = 90,
 }, _ServerFinderState.Window)
 
@@ -2061,8 +2118,13 @@ _ServerFinderState.askTeleportConfirmation = function(server, context, matchmaki
             _ServerFinderState.TeleportConfirmMessage.Text = "O Roblox escolhe por localizacao e latencia; nao garante servidor brasileiro.\n"
             .. "Você quer sair deste servidor e continuar?"
     else
-        _ServerFinderState.TeleportConfirmMessage.Text = "Encontrei " .. target .. " (" .. occupancy .. ").\n"
-            .. "Você quer sair deste servidor e continuar para o destino encontrado?"
+        local approximationNotice = ""
+        if server and server.regionApproximate then
+            approximationNotice = "\nA região é uma estimativa pela latência; o Roblox bloqueou a confirmação exata."
+        end
+        _ServerFinderState.TeleportConfirmMessage.Text = "Encontrei " .. target .. " (" .. occupancy .. ")."
+            .. approximationNotice
+            .. "\nVocê quer sair deste servidor e continuar para o destino encontrado?"
     end
     _ServerFinderState.teleportDecision = nil
     _ServerFinderState.TeleportConfirmPopup.Visible = true
@@ -2122,6 +2184,18 @@ _ServerFinderState.StartupOkButton.MouseButton1Click:Connect(function()
         end)
     end)
 end)
+
+ _ServerFinderState.startupPopupShown = false
+_ServerFinderState.showStartupPopup = function()
+    if _ServerFinderState.startupPopupShown
+        or _ServerFinderState.destroyed
+        or not _ServerFinderState.followUnlocked
+        or not _ServerFinderState.StartupOverlay.Parent then
+        return
+    end
+    _ServerFinderState.startupPopupShown = true
+    _ServerFinderState.StartupOverlay.Visible = true
+end
 
 _ServerFinderState.VerifiedButton.MouseButton1Click:Connect(function()
     _ServerFinderState.VerifiedPopup.Visible = true
@@ -2525,7 +2599,7 @@ _ServerFinderState.answer = function(rawMessage)
     end
     if _ServerFinderState.hasAny(text, {"idioma", "brasil", "br", "english", "inglês"}) then
         _ServerFinderState.ChatState.lastIntent = "language"
-        return "O botão BR confirma o país do servidor antes de entrar. As buscas comuns removem servidores onde seus amigos estão."
+        return "O botão BR tenta confirmar o país do servidor. Se o Roblox bloquear essa consulta, ele usa a menor latência disponível e avisa que é uma estimativa."
     end
     if _ServerFinderState.hasAny(text, {"servidor aleatório", "servidor aleatorio", "qualquer servidor"}) then
         _ServerFinderState.ChatState.lastIntent = "search"
@@ -2880,8 +2954,8 @@ _ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 44),
     Position = UDim2.fromOffset(14, 34),
     BackgroundTransparency = 1,
-    Text = "O botão BR verifica o país antes do teleporte e não entra em servidores com amigos.\n"
-        .. "Se a API bloquear a verificação, a busca falha sem escolher outro país.",
+    Text = "O botão BR tenta confirmar o país antes do teleporte e não entra em servidores com amigos.\n"
+        .. "Se o Roblox bloquear a confirmação exata, usa a menor latência disponível e identifica o resultado como estimado.",
     TextColor3 = Color3.fromRGB(210, 215, 225),
     TextSize = 11,
     TextWrapped = true,
@@ -3303,6 +3377,7 @@ _ServerFinderState.unlockFollowGate = function()
             task.wait(minimumRemaining)
             if not _ServerFinderState.destroyed and _ServerFinderState.Loading.Parent then
                 _ServerFinderState.hideLoading(true)
+                _ServerFinderState.showStartupPopup()
             end
         end)
     end
@@ -3700,6 +3775,9 @@ _ServerFinderState.runSearch = function(mode, label)
                     if mode == "brazil" and server.region then
                         local city = server.region.city ~= "" and server.region.city .. ", " or ""
                         selectionText = selectionText .. " • " .. city .. server.region.country
+                        if server.regionApproximate and server.regionPing then
+                            selectionText = selectionText .. " (" .. tostring(math.floor(server.regionPing)) .. " ms)"
+                        end
                     end
                     _ServerFinderState.setStatus(
                         _ServerFinderState.SearchStatus,
