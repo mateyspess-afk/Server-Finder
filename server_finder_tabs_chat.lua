@@ -1930,7 +1930,7 @@ local function askTeleportConfirmation(server, context, matchmaking)
             .. "Você quer sair deste servidor e continuar?"
     elseif server and server.regionUnverified then
         TeleportConfirmMessage.Text = "Nao foi possivel confirmar que este servidor fica no Brasil (" .. occupancy .. "). Amigos e servidores bloqueados foram excluidos. Entrar mesmo assim?"
-        TeleportConfirmMessage.Text = "Encontrei " .. target .. " (" .. occupancy .. ").\n"
+    else
             .. "Você quer sair deste servidor e continuar para o destino encontrado?"
     end
     teleportDecision = nil
