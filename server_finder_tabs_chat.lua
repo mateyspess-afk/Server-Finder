@@ -1218,28 +1218,27 @@ local function chooseServer(mode)
         return nil, fetchError or "Nenhum servidor disponível foi encontrado."
     end
 
+    local regionUnverified = false
     if mode == "brazil" then
-        if regionApiUnavailable then
-            return nil, "A API de região do Roblox bloqueou a consulta. O servidor BR não pode ser confirmado com segurança."
-        end
-
         local brazilServers = {}
         local checked = 0
+        local regionCheckBlocked = regionApiUnavailable
+
         for _, server in ipairs(servers) do
-            if checked >= Config.maxRegionChecks then
+            if checked >= Config.maxRegionChecks or regionCheckBlocked then
                 break
             end
-            if regionApiUnavailable then
-                return nil, "A API de região do Roblox bloqueou a consulta. O servidor BR não pode ser confirmado com segurança."
-            end
-
             checked = checked + 1
             setStatus(
                 SearchStatus,
-                "Localizando servidores brasileiros sem amigos... " .. checked .. "/" .. Config.maxRegionChecks,
+                "Localizando servidores BR cheios sem amigos... " .. checked .. "/" .. Config.maxRegionChecks,
                 Color3.fromRGB(225, 210, 110)
             )
             local region = getServerRegion(server)
+            if regionApiUnavailable then
+                regionCheckBlocked = true
+                break
+            end
             if region and region.countryCode == "BR" then
                 server.region = region
                 table.insert(brazilServers, server)
@@ -1247,10 +1246,21 @@ local function chooseServer(mode)
             task.wait(0.05)
         end
 
-        if #brazilServers == 0 then
-            return nil, "Não encontrei servidor brasileiro livre de amigos. A API pode estar bloqueada ou sem resultados."
+        if #brazilServers > 0 then
+            servers = brazilServers
+        elseif regionCheckBlocked then
+            regionUnverified = true
+            for _, server in ipairs(servers) do
+                server.regionUnverified = true
+            end
+            setStatus(
+                SearchStatus,
+                "IP/regiao indisponivel; buscando servidor cheio. Pais nao confirmado.",
+                Color3.fromRGB(225, 210, 110)
+            )
+        else
+            return nil, "Nao encontrei servidor BR livre de amigos entre os servidores verificados."
         end
-        servers = brazilServers
     end
 
     if mode == "random" then
@@ -1271,6 +1281,10 @@ local function chooseServer(mode)
 
     if selected then
         return selected, nil
+    end
+    if mode == "brazil" then
+        local detail = regionUnverified and "A regiao nao foi confirmada e nao encontrei servidor com 6+ jogadores e 2 vagas." or "Nao encontrei servidor BR com 6+ jogadores e 2 vagas."
+        return nil, detail
     end
     if mode == "full" then
         return nil, "Não encontrei um servidor com ocupação alta e vagas disponíveis. Tente o servidor aleatório."
@@ -1914,7 +1928,8 @@ local function askTeleportConfirmation(server, context, matchmaking)
     if matchmaking then
             TeleportConfirmMessage.Text = "O Roblox escolhe por localizacao e latencia; nao garante servidor brasileiro.\n"
             .. "Você quer sair deste servidor e continuar?"
-    else
+    elseif server and server.regionUnverified then
+        TeleportConfirmMessage.Text = "Nao foi possivel confirmar que este servidor fica no Brasil (" .. occupancy .. "). Amigos e servidores bloqueados foram excluidos. Entrar mesmo assim?"
         TeleportConfirmMessage.Text = "Encontrei " .. target .. " (" .. occupancy .. ").\n"
             .. "Você quer sair deste servidor e continuar para o destino encontrado?"
     end
@@ -3510,7 +3525,9 @@ runSearch = function(mode, label)
                 local server, selectionError = chooseServer(mode)
                 if server then
                     local selectionText = "Selecionado: " .. server.playing .. "/" .. server.maxPlayers
-                    if mode == "brazil" and server.region then
+                    if mode == "brazil" and server.regionUnverified then
+                        selectionText = "Regiao BR nao confirmada - " .. selectionText
+                    elseif mode == "brazil" and server.region then
                         local city = server.region.city ~= "" and server.region.city .. ", " or ""
                         selectionText = selectionText .. " • " .. city .. server.region.country
                     end
