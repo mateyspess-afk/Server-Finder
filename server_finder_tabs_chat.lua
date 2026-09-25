@@ -1,3 +1,5 @@
+-- Centralizar o estado evita exceder o limite de 200 variáveis locais do Luau.
+local _ServerFinderState = {}
 --[[
     SERVER FINDER - RESPONSIVE EDITION
 
@@ -12,69 +14,70 @@
     - Não exibe nem guarda o IP no script; o serviço de geolocalização recebe a conexão para estimar o país.
 ]]
 
-local Players = game:GetService("Players")
-local CoreGui = game:GetService("CoreGui")
-local HttpService = game:GetService("HttpService")
-local TeleportService = game:GetService("TeleportService")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
+ _ServerFinderState.Players = game:GetService("Players")
+ _ServerFinderState.CoreGui = game:GetService("CoreGui")
+ _ServerFinderState.HttpService = game:GetService("HttpService")
+ _ServerFinderState.TeleportService = game:GetService("TeleportService")
+ _ServerFinderState.UserInputService = game:GetService("UserInputService")
+ _ServerFinderState.RunService = game:GetService("RunService")
 
-local Player = Players.LocalPlayer or Players.PlayerAdded:Wait()
-local PLACE_ID = 4924922222
-local GUARD_VERSION = "v1"
-local WRONG_GAME_MESSAGE = [[🇧🇷 você não está no jogo correto vá para o Brookhaven para usar o script
+ _ServerFinderState.Player = _ServerFinderState.Players.LocalPlayer or _ServerFinderState.Players.PlayerAdded:Wait()
+ _ServerFinderState.PLACE_ID = 4924922222
+ _ServerFinderState.GUARD_VERSION = "v1"
+ _ServerFinderState.WRONG_GAME_MESSAGE = [[🇧🇷 você não está no jogo correto vá para o Brookhaven para usar o script
 🇺🇸 You're not in the correct game. Go to Brookhaven to use the script.]]
 
-local function isBrookhaven()
-    return (tonumber(game.PlaceId) or -1) == PLACE_ID
+_ServerFinderState.isBrookhaven = function()
+    return (tonumber(game.PlaceId) or -1) == _ServerFinderState.PLACE_ID
 end
 
-local function kickFromWrongGame()
-    warn("[Server-Finder " .. GUARD_VERSION .. "] Jogo incorreto. PlaceId: " .. tostring(game.PlaceId))
+_ServerFinderState.kickFromWrongGame = function()
+    warn("[Server-Finder " .. _ServerFinderState.GUARD_VERSION .. "] Jogo incorreto. PlaceId: " .. tostring(game.PlaceId))
     pcall(function()
-        if Player and Player.Parent then
-            Player:Kick(WRONG_GAME_MESSAGE)
+        if _ServerFinderState.Player and _ServerFinderState.Player.Parent then
+            _ServerFinderState.Player:Kick(_ServerFinderState.WRONG_GAME_MESSAGE)
         end
     end)
     -- Segunda tentativa para executores que atrasam a primeira chamada.
     task.delay(0.25, function()
         pcall(function()
-            if Player and Player.Parent then
-                Player:Kick(WRONG_GAME_MESSAGE)
+            if _ServerFinderState.Player and _ServerFinderState.Player.Parent then
+                _ServerFinderState.Player:Kick(_ServerFinderState.WRONG_GAME_MESSAGE)
             end
         end)
     end)
 end
 
-if not isBrookhaven() then
-    kickFromWrongGame()
+if not _ServerFinderState.isBrookhaven() then
+    _ServerFinderState.kickFromWrongGame()
     return
 end
 
-local BASE_WIDTH = 720
-local BASE_HEIGHT = 460
-local MIN_SCALE = 0.55
-local MAX_USER_SCALE = 1.35
-local CREATOR_USERNAME = "mateus_15600"
-local CREATOR_PROFILE_URL = "https://www.roblox.com/users/profile?username=" .. CREATOR_USERNAME
-local DISCORD_INVITE = "https://discord.gg/RtfAn6zku8"
-local DISCORD_INVITE_CODE = "RtfAn6zku8"
+ _ServerFinderState.BASE_WIDTH = 720
+ _ServerFinderState.BASE_HEIGHT = 460
+ _ServerFinderState.MIN_SCALE = 0.55
+ _ServerFinderState.MAX_USER_SCALE = 1.35
+ _ServerFinderState.CREATOR_USERNAME = "mateus_15600"
+ _ServerFinderState.CREATOR_PROFILE_URL = "https://www.roblox.com/users/profile?username=" .. _ServerFinderState.CREATOR_USERNAME
+ _ServerFinderState.DISCORD_INVITE = "https://discord.gg/RtfAn6zku8"
+ _ServerFinderState.DISCORD_INVITE_CODE = "RtfAn6zku8"
 
-local Config = {
+_ServerFinderState.Config = {
     botName = "NOVA",
-    userName = Player.DisplayName or Player.Name,
+    userName = _ServerFinderState.Player.DisplayName or _ServerFinderState.Player.Name,
     blacklistTime = 300,
-    maxPages = 5,
+    maxPages = 8,
     maxFriendPages = 20,
-    maxRegionChecks = 15,
+    maxRegionChecks = 30,
     regionCacheTime = 600,
+    regionErrorCacheTime = 60,
 }
 
 -- Preferências visuais ficam no diretório de arquivos do executor.
 -- O script continua funcionando mesmo em executores sem readfile/writefile:
 -- nesse caso o tema vale para a sessão atual e a interface informa o motivo.
-local CONFIG_FILE = "ServerFinder_Config.json"
-local Themes = {
+ _ServerFinderState.CONFIG_FILE = "ServerFinder_Config.json"
+ _ServerFinderState.Themes = {
     Midnight = {
         label = "Midnight",
         description = "Azul escuro com ciano",
@@ -257,16 +260,16 @@ local Themes = {
     },
 }
 
-local function addTheme(name, label, description, preview, baseName, overrides)
+_ServerFinderState.addTheme = function(name, label, description, preview, baseName, overrides)
     local colors = {}
-    for role, color in pairs(Themes[baseName].colors) do
+    for role, color in pairs(_ServerFinderState.Themes[baseName].colors) do
         colors[role] = color
     end
     for role, color in pairs(overrides) do
         colors[role] = color
     end
 
-    Themes[name] = {
+    _ServerFinderState.Themes[name] = {
         label = label,
         description = description,
         preview = preview,
@@ -274,7 +277,7 @@ local function addTheme(name, label, description, preview, baseName, overrides)
     }
 end
 
-addTheme("Troll", "Troll", "Rosa neon e energia caótica", Color3.fromRGB(255, 38, 145), "Sunset", {
+_ServerFinderState.addTheme("Troll", "Troll", "Rosa neon e energia caótica", Color3.fromRGB(255, 38, 145), "Sunset", {
     window = Color3.fromRGB(25, 12, 28),
     header = Color3.fromRGB(87, 16, 60),
     sidebar = Color3.fromRGB(48, 12, 43),
@@ -305,7 +308,7 @@ addTheme("Troll", "Troll", "Rosa neon e energia caótica", Color3.fromRGB(255, 3
     textDanger = Color3.fromRGB(255, 151, 171),
 })
 
-addTheme("Doido", "Doido", "Roxo elétrico com verde-limão", Color3.fromRGB(177, 255, 42), "Ocean", {
+_ServerFinderState.addTheme("Doido", "Doido", "Roxo elétrico com verde-limão", Color3.fromRGB(177, 255, 42), "Ocean", {
     window = Color3.fromRGB(19, 13, 35),
     header = Color3.fromRGB(48, 24, 83),
     sidebar = Color3.fromRGB(31, 19, 57),
@@ -336,7 +339,7 @@ addTheme("Doido", "Doido", "Roxo elétrico com verde-limão", Color3.fromRGB(177
     textDanger = Color3.fromRGB(255, 151, 177),
 })
 
-addTheme("Colorido", "Colorido", "Azul, rosa e amarelo vibrantes", Color3.fromRGB(255, 93, 171), "Ocean", {
+_ServerFinderState.addTheme("Colorido", "Colorido", "Azul, rosa e amarelo vibrantes", Color3.fromRGB(255, 93, 171), "Ocean", {
     window = Color3.fromRGB(12, 23, 42),
     header = Color3.fromRGB(18, 42, 76),
     sidebar = Color3.fromRGB(14, 34, 62),
@@ -367,7 +370,7 @@ addTheme("Colorido", "Colorido", "Azul, rosa e amarelo vibrantes", Color3.fromRG
     textDanger = Color3.fromRGB(255, 153, 167),
 })
 
-addTheme("Louco", "Louco", "Preto com verde ácido e vermelho", Color3.fromRGB(120, 255, 0), "Midnight", {
+_ServerFinderState.addTheme("Louco", "Louco", "Preto com verde ácido e vermelho", Color3.fromRGB(120, 255, 0), "Midnight", {
     window = Color3.fromRGB(9, 12, 12),
     header = Color3.fromRGB(19, 35, 22),
     sidebar = Color3.fromRGB(13, 26, 17),
@@ -398,7 +401,7 @@ addTheme("Louco", "Louco", "Preto com verde ácido e vermelho", Color3.fromRGB(1
     textDanger = Color3.fromRGB(255, 139, 139),
 })
 
-addTheme("FakeErrors", "Erros Fakes", "Visual de alerta; sem erros reais", Color3.fromRGB(255, 63, 55), "Midnight", {
+_ServerFinderState.addTheme("FakeErrors", "Erros Fakes", "Visual de alerta; sem erros reais", Color3.fromRGB(255, 63, 55), "Midnight", {
     window = Color3.fromRGB(27, 12, 15),
     header = Color3.fromRGB(66, 20, 25),
     sidebar = Color3.fromRGB(43, 15, 19),
@@ -428,7 +431,7 @@ addTheme("FakeErrors", "Erros Fakes", "Visual de alerta; sem erros reais", Color
     textDanger = Color3.fromRGB(255, 151, 151),
 })
 
-addTheme("WindowsClassic", "Clássico Windows", "Cinza clássico e azul de título", Color3.fromRGB(0, 0, 128), "Midnight", {
+_ServerFinderState.addTheme("WindowsClassic", "Clássico Windows", "Cinza clássico e azul de título", Color3.fromRGB(0, 0, 128), "Midnight", {
     window = Color3.fromRGB(192, 192, 192),
     header = Color3.fromRGB(0, 0, 128),
     sidebar = Color3.fromRGB(212, 208, 200),
@@ -469,49 +472,49 @@ addTheme("WindowsClassic", "Clássico Windows", "Cinza clássico e azul de títu
     textDanger = Color3.fromRGB(128, 0, 0),
 })
 
-local ThemeBindings = {}
-local ThemeButtons = {}
-local TabButtons = {}
-local TabIndicators = {}
-local TabStrokes = {}
-local ThemeStatus
-local InfoTab
-local currentThemeName = "Midnight"
+ _ServerFinderState.ThemeBindings = {}
+ _ServerFinderState.ThemeButtons = {}
+ _ServerFinderState.TabButtons = {}
+ _ServerFinderState.TabIndicators = {}
+ _ServerFinderState.TabStrokes = {}
+_ServerFinderState.ThemeStatus = nil
+_ServerFinderState.InfoTab = nil
+ _ServerFinderState.currentThemeName = "Midnight"
 
-local function isTheme(name)
-    return type(name) == "string" and Themes[name] ~= nil
+_ServerFinderState.isTheme = function(name)
+    return type(name) == "string" and _ServerFinderState.Themes[name] ~= nil
 end
 
-local function loadSavedTheme()
+_ServerFinderState.loadSavedTheme = function()
     if type(readfile) ~= "function" then
         return "Midnight"
     end
 
-    local ok, raw = pcall(readfile, CONFIG_FILE)
+    local ok, raw = pcall(readfile, _ServerFinderState.CONFIG_FILE)
     if not ok or type(raw) ~= "string" or raw == "" then
         return "Midnight"
     end
 
     local decodedOk, decoded = pcall(function()
-        return HttpService:JSONDecode(raw)
+        return _ServerFinderState.HttpService:JSONDecode(raw)
     end)
-    if decodedOk and type(decoded) == "table" and isTheme(decoded.theme) then
+    if decodedOk and type(decoded) == "table" and _ServerFinderState.isTheme(decoded.theme) then
         return decoded.theme
     end
     return "Midnight"
 end
 
-Config.theme = loadSavedTheme()
-currentThemeName = Config.theme
+_ServerFinderState.Config.theme = _ServerFinderState.loadSavedTheme()
+_ServerFinderState.currentThemeName = _ServerFinderState.Config.theme
 
-local function saveTheme()
+_ServerFinderState.saveTheme = function()
     if type(writefile) ~= "function" then
         return false, "Este executor não permite salvar arquivos."
     end
 
     local ok, errorMessage = pcall(function()
-        writefile(CONFIG_FILE, HttpService:JSONEncode({
-            theme = Config.theme,
+        writefile(_ServerFinderState.CONFIG_FILE, _ServerFinderState.HttpService:JSONEncode({
+            theme = _ServerFinderState.Config.theme,
         }))
     end)
     if not ok then
@@ -520,7 +523,7 @@ local function saveTheme()
     return true
 end
 
-local function colorKey(color)
+_ServerFinderState.colorKey = function(color)
     if typeof(color) ~= "Color3" then
         return nil
     end
@@ -532,7 +535,7 @@ local function colorKey(color)
     )
 end
 
-local BackgroundRoles = {
+ _ServerFinderState.BackgroundRoles = {
     ["15,18,27"] = "window",
     ["25,30,44"] = "header",
     ["20,24,35"] = "sidebar",
@@ -562,7 +565,7 @@ local BackgroundRoles = {
     ["88,101,242"] = "discord",
 }
 
-local TextRoles = {
+ _ServerFinderState.TextRoles = {
     ["245,245,250"] = "text",
     ["245,248,255"] = "textBright",
     ["240,240,245"] = "textBright",
@@ -588,7 +591,7 @@ local TextRoles = {
     ["240,130,130"] = "textDanger",
 }
 
-local StrokeRoles = {
+ _ServerFinderState.StrokeRoles = {
     ["70,82,110"] = "border",
     ["70,93,125"] = "border",
     ["63,76,103"] = "border",
@@ -602,32 +605,32 @@ local StrokeRoles = {
     ["255,255,255"] = "textBright",
 }
 
-local function inferThemeRole(className, property, value)
-    local key = colorKey(value)
+_ServerFinderState.inferThemeRole = function(className, property, value)
+    local key = _ServerFinderState.colorKey(value)
     if not key then
         return nil
     end
     if property == "BackgroundColor3" then
-        return BackgroundRoles[key]
+        return _ServerFinderState.BackgroundRoles[key]
     end
     if property == "TextColor3" then
-        return TextRoles[key]
+        return _ServerFinderState.TextRoles[key]
     end
     if className == "UIStroke" and property == "Color" then
-        return StrokeRoles[key]
+        return _ServerFinderState.StrokeRoles[key]
     end
     return nil
 end
 
-local function applyTheme(name)
-    if not isTheme(name) then
+_ServerFinderState.applyTheme = function(name)
+    if not _ServerFinderState.isTheme(name) then
         name = "Midnight"
     end
 
-    Config.theme = name
-    currentThemeName = name
-    local colors = Themes[name].colors
-    for _, binding in ipairs(ThemeBindings) do
+    _ServerFinderState.Config.theme = name
+    _ServerFinderState.currentThemeName = name
+    local colors = _ServerFinderState.Themes[name].colors
+    for _, binding in ipairs(_ServerFinderState.ThemeBindings) do
         if binding.object and binding.object.Parent and colors[binding.role] then
             pcall(function()
                 binding.object[binding.property] = colors[binding.role]
@@ -635,7 +638,7 @@ local function applyTheme(name)
         end
     end
 
-    for _, themeButton in ipairs(ThemeButtons) do
+    for _, themeButton in ipairs(_ServerFinderState.ThemeButtons) do
         if themeButton.button and themeButton.button.Parent then
             local selected = themeButton.name == name
             themeButton.button.BackgroundColor3 = selected
@@ -643,65 +646,65 @@ local function applyTheme(name)
                 or colors.tab
             themeButton.button.TextColor3 = colors.textBright
             themeButton.button.Text = selected
-                and "✓  " .. themeButton.label .. "\n" .. Themes[themeButton.name].description
-                or themeButton.label .. "\n" .. Themes[themeButton.name].description
+                and "✓  " .. themeButton.label .. "\n" .. _ServerFinderState.Themes[themeButton.name].description
+                or themeButton.label .. "\n" .. _ServerFinderState.Themes[themeButton.name].description
             if themeButton.preview and themeButton.preview.Parent then
-                themeButton.preview.BackgroundColor3 = Themes[themeButton.name].preview
+                themeButton.preview.BackgroundColor3 = _ServerFinderState.Themes[themeButton.name].preview
             end
         end
     end
 
-    for tabName, button in pairs(TabButtons) do
+    for tabName, button in pairs(_ServerFinderState.TabButtons) do
         local activeColor = tabName == "Configs" and colors.purple or colors.primary
         button:SetAttribute("ActiveColor", activeColor)
-        if TabIndicators[tabName] then
-            TabIndicators[tabName].BackgroundColor3 = activeColor
+        if _ServerFinderState.TabIndicators[tabName] then
+            _ServerFinderState.TabIndicators[tabName].BackgroundColor3 = activeColor
         end
     end
-    if InfoTab and InfoTab.Parent then
-        InfoTab.BackgroundColor3 = InfoTab:GetAttribute("IsActive")
+    if _ServerFinderState.InfoTab and _ServerFinderState.InfoTab.Parent then
+        _ServerFinderState.InfoTab.BackgroundColor3 = _ServerFinderState.InfoTab:GetAttribute("IsActive")
             and colors.primary
             or colors.infoButton
-        InfoTab.TextColor3 = InfoTab:GetAttribute("IsActive")
+        _ServerFinderState.InfoTab.TextColor3 = _ServerFinderState.InfoTab:GetAttribute("IsActive")
             and colors.textBright
             or colors.textAccent
     end
 
-    if ThemeStatus and ThemeStatus.Parent then
-        ThemeStatus.Text = "Tema atual: " .. Themes[name].label
-        ThemeStatus.TextColor3 = colors.textSuccess
+    if _ServerFinderState.ThemeStatus and _ServerFinderState.ThemeStatus.Parent then
+        _ServerFinderState.ThemeStatus.Text = "Tema atual: " .. _ServerFinderState.Themes[name].label
+        _ServerFinderState.ThemeStatus.TextColor3 = colors.textSuccess
     end
 end
 
-local blacklist = {}
-local friendServerCache
-local friendServerCacheAt = 0
-local regionCache = {}
-local regionApiUnavailable = false
-local searching = false
-local teleportFailed = false
-local destroyed = false
-local loadingConnection
-local inputChangedConnection
-local teleportInitFailedConnection
-local creatorUserId
-local followUnlocked = false
-local followChecking = false
-local followGateVisible = true
-local FOLLOW_LOADING_MIN_SECONDS = 3
-local FOLLOW_RECHECK_INTERVAL = 30
-local followGateStartedAt = os.clock()
-local currentScale = 1
-local manualScale = 1
-local SearchStatus
+ _ServerFinderState.blacklist = {}
+_ServerFinderState.friendServerCache = nil
+ _ServerFinderState.friendServerCacheAt = 0
+ _ServerFinderState.regionCache = {}
+ _ServerFinderState.regionApiUnavailable = false
+ _ServerFinderState.searching = false
+ _ServerFinderState.teleportFailed = false
+ _ServerFinderState.destroyed = false
+_ServerFinderState.loadingConnection = nil
+_ServerFinderState.inputChangedConnection = nil
+_ServerFinderState.teleportInitFailedConnection = nil
+_ServerFinderState.creatorUserId = nil
+ _ServerFinderState.followUnlocked = false
+ _ServerFinderState.followChecking = false
+ _ServerFinderState.followGateVisible = true
+ _ServerFinderState.FOLLOW_LOADING_MIN_SECONDS = 3
+ _ServerFinderState.FOLLOW_RECHECK_INTERVAL = 30
+ _ServerFinderState.followGateStartedAt = os.clock()
+ _ServerFinderState.currentScale = 1
+ _ServerFinderState.manualScale = 1
+_ServerFinderState.SearchStatus = nil
 
-local function create(className, properties, parent)
+_ServerFinderState.create = function(className, properties, parent)
     local object = Instance.new(className)
     for property, value in pairs(properties or {}) do
         object[property] = value
-        local role = inferThemeRole(className, property, value)
+        local role = _ServerFinderState.inferThemeRole(className, property, value)
         if role then
-            table.insert(ThemeBindings, {
+            table.insert(_ServerFinderState.ThemeBindings, {
                 object = object,
                 property = property,
                 role = role,
@@ -712,24 +715,24 @@ local function create(className, properties, parent)
     return object
 end
 
-local function corner(object, radius)
-    create("UICorner", {CornerRadius = UDim.new(0, radius)}, object)
+_ServerFinderState.corner = function(object, radius)
+    _ServerFinderState.create("UICorner", {CornerRadius = UDim.new(0, radius)}, object)
 end
 
-local function stroke(object, color, thickness, transparency)
-    return create("UIStroke", {
+_ServerFinderState.stroke = function(object, color, thickness, transparency)
+    return _ServerFinderState.create("UIStroke", {
         Color = color,
         Thickness = thickness or 1,
         Transparency = transparency or 0,
     }, object)
 end
 
-local function styleButton(button, color, hoverColor)
+_ServerFinderState.styleButton = function(button, color, hoverColor)
     button.AutoButtonColor = false
-    stroke(button, Color3.fromRGB(255, 255, 255), 1, 0.82)
-    local themeRole = inferThemeRole("TextButton", "BackgroundColor3", color)
+    _ServerFinderState.stroke(button, Color3.fromRGB(255, 255, 255), 1, 0.82)
+    local themeRole = _ServerFinderState.inferThemeRole("TextButton", "BackgroundColor3", color)
     local function baseColor()
-        return themeRole and Themes[currentThemeName].colors[themeRole] or color
+        return themeRole and _ServerFinderState.Themes[_ServerFinderState.currentThemeName].colors[themeRole] or color
     end
     local function hoverButtonColor()
         local selectedColor = baseColor()
@@ -750,7 +753,7 @@ local function styleButton(button, color, hoverColor)
     return button
 end
 
-local function disableButton(button, color)
+_ServerFinderState.disableButton = function(button, color)
     button.Active = false
     button.Selectable = false
     button.AutoButtonColor = false
@@ -763,11 +766,11 @@ local function disableButton(button, color)
     end)
 end
 
-local function clamp(value, minimum, maximum)
+_ServerFinderState.clamp = function(value, minimum, maximum)
     return math.max(minimum, math.min(maximum, value))
 end
 
-local function setStatus(label, text, color)
+_ServerFinderState.setStatus = function(label, text, color)
     if label and label.Parent then
         label.Text = tostring(text)
         if color then
@@ -776,13 +779,13 @@ local function setStatus(label, text, color)
     end
 end
 
-local function urlEncode(value)
+_ServerFinderState.urlEncode = function(value)
     return tostring(value):gsub("([^%w%-_%.~])", function(character)
         return string.format("%%%02X", string.byte(character))
     end)
 end
 
-local function getRequester()
+_ServerFinderState.getRequester = function()
     if type(request) == "function" then
         return request
     end
@@ -798,9 +801,9 @@ local function getRequester()
     return nil
 end
 
-local HTTP_TIMEOUT = 12
+ _ServerFinderState.HTTP_TIMEOUT = 12
 
-local function responseBody(response)
+_ServerFinderState.responseBody = function(response)
     if type(response) == "string" then
         if response ~= "" then
             return response
@@ -820,7 +823,7 @@ local function responseBody(response)
     error("Resposta HTTP inválida ou vazia.")
 end
 
-local function httpGet(url)
+_ServerFinderState.httpGet = function(url)
     local lastError
 
     -- Muitos executores só conseguem consultar as APIs do Roblox via game:HttpGet.
@@ -835,17 +838,17 @@ local function httpGet(url)
     end
 
     -- request é alternativa com timeout para executores sem HttpGet funcional.
-    local requester = getRequester()
+    local requester = _ServerFinderState.getRequester()
     if requester then
         local ok, response = pcall(requester, {
             Url = url,
             Method = "GET",
-            Timeout = HTTP_TIMEOUT,
+            Timeout = _ServerFinderState.HTTP_TIMEOUT,
         })
         if not ok then
             error(lastError or response)
         end
-        local bodyOk, body = pcall(responseBody, response)
+        local bodyOk, body = pcall(_ServerFinderState.responseBody, response)
         if bodyOk then
             return body
         end
@@ -855,8 +858,8 @@ local function httpGet(url)
     error(lastError or "O executor não possui uma função HTTP.")
 end
 
-local function httpRequest(url, method, body)
-    local requester = getRequester()
+_ServerFinderState.httpRequest = function(url, method, body)
+    local requester = _ServerFinderState.getRequester()
     if not requester then
         error("Este executor não possui request para POST.")
     end
@@ -868,7 +871,7 @@ local function httpRequest(url, method, body)
             ["Content-Type"] = "application/json",
         },
         Body = body,
-        Timeout = HTTP_TIMEOUT,
+        Timeout = _ServerFinderState.HTTP_TIMEOUT,
     }
     local ok, response = pcall(requester, options)
     if not ok then
@@ -879,12 +882,12 @@ local function httpRequest(url, method, body)
     if not ok then
         error(response)
     end
-    return responseBody(response)
+    return _ServerFinderState.responseBody(response)
 end
 
-local function decodeJson(body, message)
+_ServerFinderState.decodeJson = function(body, message)
     local ok, data = pcall(function()
-        return HttpService:JSONDecode(body)
+        return _ServerFinderState.HttpService:JSONDecode(body)
     end)
     if not ok or type(data) ~= "table" then
         error(message or "Resposta JSON inválida.")
@@ -892,23 +895,23 @@ local function decodeJson(body, message)
     return data
 end
 
-local function getServers(cursor)
+_ServerFinderState.getServers = function(cursor)
     local url = "https://games.roblox.com/v1/games/"
-        .. PLACE_ID
+        .. _ServerFinderState.PLACE_ID
         .. "/servers/Public?sortOrder=Desc&limit=100"
 
     if cursor and cursor ~= "" then
-        url = url .. "&cursor=" .. urlEncode(cursor)
+        url = url .. "&cursor=" .. _ServerFinderState.urlEncode(cursor)
     end
 
     local lastError = "A API não retornou uma lista válida de servidores."
     for attempt = 1, 3 do
         local ok, body = pcall(function()
-            return httpGet(url)
+            return _ServerFinderState.httpGet(url)
         end)
         if ok and body then
             local decoded, data = pcall(function()
-                return decodeJson(body)
+                return _ServerFinderState.decodeJson(body)
             end)
             if decoded and type(data.data) == "table" then
                 return data
@@ -923,7 +926,7 @@ local function getServers(cursor)
     return nil, lastError
 end
 
-local function isAvailable(server)
+_ServerFinderState.isAvailable = function(server)
     if type(server) ~= "table"
         or type(server.id) ~= "string"
         or server.id == game.JobId
@@ -933,9 +936,9 @@ local function isAvailable(server)
         return false
     end
 
-    if blacklist[server.id] then
-        if os.time() >= blacklist[server.id] then
-            blacklist[server.id] = nil
+    if _ServerFinderState.blacklist[server.id] then
+        if os.time() >= _ServerFinderState.blacklist[server.id] then
+            _ServerFinderState.blacklist[server.id] = nil
         else
             return false
         end
@@ -943,11 +946,11 @@ local function isAvailable(server)
     return true
 end
 
-local FRIEND_SERVER_CACHE_SECONDS = 30
+ _ServerFinderState.FRIEND_SERVER_CACHE_SECONDS = 30
 
-local function getFriendServerIds()
-    if friendServerCache and os.time() - friendServerCacheAt < FRIEND_SERVER_CACHE_SECONDS then
-        return friendServerCache
+_ServerFinderState.getFriendServerIds = function()
+    if _ServerFinderState.friendServerCache and os.time() - _ServerFinderState.friendServerCacheAt < _ServerFinderState.FRIEND_SERVER_CACHE_SECONDS then
+        return _ServerFinderState.friendServerCache
     end
 
     local friendUserIds = {}
@@ -955,25 +958,25 @@ local function getFriendServerIds()
     local cursor
     local finishedFriends = false
 
-    for page = 1, Config.maxFriendPages do
-        if destroyed then
+    for page = 1, _ServerFinderState.Config.maxFriendPages do
+        if _ServerFinderState.destroyed then
             error("Busca de amigos cancelada.")
         end
 
-        setStatus(
-            SearchStatus,
+        _ServerFinderState.setStatus(
+            _ServerFinderState.SearchStatus,
             "Verificando os servidores dos seus amigos...",
             Color3.fromRGB(225, 210, 110)
         )
 
         local url = "https://friends.roblox.com/v1/users/"
-            .. tostring(Player.UserId)
+            .. tostring(_ServerFinderState.Player.UserId)
             .. "/friends?limit=100"
         if cursor and cursor ~= "" then
-            url = url .. "&cursor=" .. urlEncode(cursor)
+            url = url .. "&cursor=" .. _ServerFinderState.urlEncode(cursor)
         end
 
-        local friendsData = decodeJson(httpGet(url), "Resposta inválida ao consultar a lista de amigos.")
+        local friendsData = _ServerFinderState.decodeJson(_ServerFinderState.httpGet(url), "Resposta inválida ao consultar a lista de amigos.")
         if type(friendsData.data) ~= "table" then
             error("A API do Roblox não retornou a lista de amigos.")
         end
@@ -1008,11 +1011,11 @@ local function getFriendServerIds()
             expected[userId] = true
         end
 
-        local presenceData = decodeJson(
-            httpRequest(
+        local presenceData = _ServerFinderState.decodeJson(
+            _ServerFinderState.httpRequest(
                 "https://presence.roblox.com/v1/presence/users",
                 "POST",
-                HttpService:JSONEncode({userIds = batch})
+                _ServerFinderState.HttpService:JSONEncode({userIds = batch})
             ),
             "Resposta inválida ao consultar os servidores dos amigos."
         )
@@ -1027,7 +1030,7 @@ local function getFriendServerIds()
                 received[userId] = true
                 local gameId = presence.gameId
                 if tonumber(presence.userPresenceType) == 2
-                    and tonumber(presence.placeId) == PLACE_ID
+                    and tonumber(presence.placeId) == _ServerFinderState.PLACE_ID
                     and type(gameId) == "string"
                     and gameId ~= "" then
                     friendServerIds[gameId] = true
@@ -1042,28 +1045,28 @@ local function getFriendServerIds()
         end
     end
 
-    friendServerCache = friendServerIds
-    friendServerCacheAt = os.time()
+    _ServerFinderState.friendServerCache = friendServerIds
+    _ServerFinderState.friendServerCacheAt = os.time()
     return friendServerIds
 end
 
-local function collectServers(maxPages)
+_ServerFinderState.collectServers = function(maxPages)
     local result = {}
     local known = {}
     local cursor = ""
-    local pageLimit = maxPages or Config.maxPages
-    local friendServersOk, friendServers = pcall(getFriendServerIds)
+    local pageLimit = maxPages or _ServerFinderState.Config.maxPages
+    local friendServersOk, friendServers = pcall(_ServerFinderState.getFriendServerIds)
     if not friendServersOk then
         return result, "Não consegui confirmar os servidores dos seus amigos. " .. tostring(friendServers)
     end
     local excludedFriendServers = 0
 
     for page = 1, pageLimit do
-        if destroyed then
+        if _ServerFinderState.destroyed then
             return {}
         end
 
-        local data, fetchError = getServers(cursor)
+        local data, fetchError = _ServerFinderState.getServers(cursor)
         if not data then
             return result, fetchError
         end
@@ -1073,8 +1076,8 @@ local function collectServers(maxPages)
                 known[server.id] = true
                 if friendServers[server.id] then
                     excludedFriendServers = excludedFriendServers + 1
-                    blacklist[server.id] = os.time() + Config.blacklistTime
-                elseif isAvailable(server) then
+                    _ServerFinderState.blacklist[server.id] = os.time() + _ServerFinderState.Config.blacklistTime
+                elseif _ServerFinderState.isAvailable(server) then
                     table.insert(result, server)
                 end
             end
@@ -1093,7 +1096,7 @@ local function collectServers(maxPages)
     return result
 end
 
-local function isIpAddress(value)
+_ServerFinderState.isIpAddress = function(value)
     if type(value) ~= "string" then
         return false
     end
@@ -1105,17 +1108,17 @@ local function isIpAddress(value)
         and tonumber(d) <= 255
 end
 
-local function getServerIp(server)
-    local body = httpRequest(
+_ServerFinderState.getServerIp = function(server)
+    local body = _ServerFinderState.httpRequest(
         "https://gamejoin.roblox.com/v1/join-game-instance",
         "POST",
-        HttpService:JSONEncode({
-            placeId = PLACE_ID,
+        _ServerFinderState.HttpService:JSONEncode({
+            placeId = _ServerFinderState.PLACE_ID,
             gameId = server.id,
             isTeleport = false,
         })
     )
-    local data = decodeJson(body, "A API de região retornou um JSON inválido.")
+    local data = _ServerFinderState.decodeJson(body, "A API de região retornou um JSON inválido.")
     local joinScript = data.joinScript
     if type(joinScript) ~= "table" then
         return nil
@@ -1125,19 +1128,19 @@ local function getServerIp(server)
     if type(endpoints) == "table" then
         for _, endpoint in ipairs(endpoints) do
             local address = type(endpoint) == "table" and endpoint.Address
-            if isIpAddress(address) then
+            if _ServerFinderState.isIpAddress(address) then
                 return address
             end
         end
     end
 
-    if isIpAddress(joinScript.MachineAddress) then
+    if _ServerFinderState.isIpAddress(joinScript.MachineAddress) then
         return joinScript.MachineAddress
     end
     return nil
 end
 
-local function lookupIpRegion(ip)
+_ServerFinderState.lookupIpRegion = function(ip)
     local urls = {
         "https://ipwho.is/" .. tostring(ip),
         "https://ip-api.com/json/" .. tostring(ip)
@@ -1146,11 +1149,11 @@ local function lookupIpRegion(ip)
 
     for _, url in ipairs(urls) do
         local ok, body = pcall(function()
-            return httpGet(url)
+            return _ServerFinderState.httpGet(url)
         end)
         if ok and body then
             local decoded, data = pcall(function()
-                return decodeJson(body)
+                return _ServerFinderState.decodeJson(body)
             end)
             if decoded and type(data) == "table" then
                 local countryCode = data.country_code or data.countryCode
@@ -1169,16 +1172,16 @@ local function lookupIpRegion(ip)
 end
 
 -- Consulta apenas o país da conexão atual; o serviço externo verá o IP público da conexão.
-local function lookupMyCountry()
+_ServerFinderState.lookupMyCountry = function()
     local ok, body = pcall(function()
-        return httpGet("https://ipwho.is/")
+        return _ServerFinderState.httpGet("https://ipwho.is/")
     end)
     if not ok or type(body) ~= "string" then
         return nil
     end
 
     local decoded, data = pcall(function()
-        return decodeJson(body)
+        return _ServerFinderState.decodeJson(body)
     end)
     if not decoded or type(data) ~= "table" or data.success == false then
         return nil
@@ -1194,40 +1197,49 @@ local function lookupMyCountry()
     }
 end
 
-local function getServerRegion(server)
-    local cached = regionCache[server.id]
-    if cached and os.time() - cached.time < Config.regionCacheTime then
-        return cached.region
+_ServerFinderState.getServerRegion = function(server)
+    local cached = _ServerFinderState.regionCache[server.id]
+    local cacheTime = cached and cached.error
+        and _ServerFinderState.Config.regionErrorCacheTime
+        or _ServerFinderState.Config.regionCacheTime
+    if cached and os.time() - cached.time < cacheTime then
+        if not cached.region and cached.error then
+            _ServerFinderState.regionApiUnavailable = true
+            _ServerFinderState.regionApiError = cached.error
+        end
+        return cached.region, cached.error
     end
 
     local ok, result = pcall(function()
-        local ip = getServerIp(server)
+        local ip = _ServerFinderState.getServerIp(server)
         if not ip then
-            return nil
+            error("O Roblox não informou o endpoint necessário para verificar a região deste servidor.")
         end
-        return lookupIpRegion(ip)
+        local region = _ServerFinderState.lookupIpRegion(ip)
+        if not region then
+            error("As APIs de geolocalização não retornaram uma região para este servidor.")
+        end
+        return region
     end)
     local region
+    local regionError
     if ok then
         region = result
     else
-        local message = string.lower(tostring(result))
-        if message:find("401", 1, true)
-            or message:find("403", 1, true)
-            or message:find("não possui request", 1, true) then
-            regionApiUnavailable = true
-        end
-        region = nil
+        regionError = tostring(result)
+        _ServerFinderState.regionApiUnavailable = true
+        _ServerFinderState.regionApiError = regionError
     end
 
-    regionCache[server.id] = {
+    _ServerFinderState.regionCache[server.id] = {
         time = os.time(),
         region = region,
+        error = regionError,
     }
-    return region
+    return region, regionError
 end
 
-local function serverScore(server, mode)
+_ServerFinderState.serverScore = function(server, mode)
     local playing = tonumber(server.playing) or 0
     local maximum = tonumber(server.maxPlayers) or 1
     local free = maximum - playing
@@ -1240,8 +1252,13 @@ local function serverScore(server, mode)
     return score
 end
 
-local function chooseServer(mode)
-    local servers, fetchError = collectServers()
+_ServerFinderState.chooseServer = function(mode)
+    if mode == "brazil" then
+        _ServerFinderState.regionApiUnavailable = false
+        _ServerFinderState.regionApiError = nil
+    end
+
+    local servers, fetchError = _ServerFinderState.collectServers()
     if #servers == 0 then
         return nil, fetchError or "Nenhum servidor disponível foi encontrado."
     end
@@ -1249,36 +1266,45 @@ local function chooseServer(mode)
     if mode == "brazil" then
         local brazilServers = {}
         local checked = 0
-        local regionCheckBlocked = regionApiUnavailable
+        local regionCheckBlocked = _ServerFinderState.regionApiUnavailable
 
         for _, server in ipairs(servers) do
-            if checked >= Config.maxRegionChecks or regionCheckBlocked then
-                break
+            if _ServerFinderState.serverScore(server, "brazil") > -math.huge then
+                if checked >= _ServerFinderState.Config.maxRegionChecks or regionCheckBlocked then
+                    break
+                end
+                checked = checked + 1
+                _ServerFinderState.setStatus(
+                    _ServerFinderState.SearchStatus,
+                    "Verificando a região de servidores elegíveis... " .. checked .. "/" .. _ServerFinderState.Config.maxRegionChecks,
+                    Color3.fromRGB(225, 210, 110)
+                )
+                local region = _ServerFinderState.getServerRegion(server)
+                if _ServerFinderState.regionApiUnavailable then
+                    regionCheckBlocked = true
+                    break
+                end
+                if region and region.countryCode == "BR" then
+                    server.region = region
+                    table.insert(brazilServers, server)
+                end
+                task.wait(0.05)
             end
-            checked = checked + 1
-            setStatus(
-                SearchStatus,
-                "Localizando servidores BR cheios sem amigos... " .. checked .. "/" .. Config.maxRegionChecks,
-                Color3.fromRGB(225, 210, 110)
-            )
-            local region = getServerRegion(server)
-            if regionApiUnavailable then
-                regionCheckBlocked = true
-                break
-            end
-            if region and region.countryCode == "BR" then
-                server.region = region
-                table.insert(brazilServers, server)
-            end
-            task.wait(0.05)
         end
 
         if #brazilServers > 0 then
             servers = brazilServers
         elseif regionCheckBlocked then
-            return nil, "A consulta de regiao foi bloqueada; nao foi possivel confirmar um servidor BR. Nenhum teleporte foi feito. Tente novamente mais tarde."
+            local detail = _ServerFinderState.regionApiError
+            local message = "Não foi possível confirmar a região brasileira. Nenhum teleporte foi feito."
+            if detail and detail ~= "" then
+                message = message .. "\nDetalhe: " .. detail
+            else
+                message = message .. " Tente novamente mais tarde."
+            end
+            return nil, message
         else
-            return nil, "Nao encontrei servidor BR livre de amigos entre os servidores verificados."
+            return nil, "Não encontrei servidor BR elegível entre os servidores verificados."
         end
     end
 
@@ -1290,7 +1316,7 @@ local function chooseServer(mode)
     local bestScore = -math.huge
 
     for _, server in ipairs(servers) do
-        local score = serverScore(server, mode)
+        local score = _ServerFinderState.serverScore(server, mode)
 
         if score > bestScore then
             selected = server
@@ -1318,31 +1344,31 @@ if type(gethui) == "function" then
         parent = result
     end
 end
-parent = parent or CoreGui
+parent = parent or _ServerFinderState.CoreGui
 
-local old = parent:FindFirstChild("ServerFinderResponsive")
-if old then
-    old:Destroy()
+ _ServerFinderState.old = parent:FindFirstChild("ServerFinderResponsive")
+if _ServerFinderState.old then
+    _ServerFinderState.old:Destroy()
 end
 
-local Gui = create("ScreenGui", {
+ _ServerFinderState.Gui = _ServerFinderState.create("ScreenGui", {
     Name = "ServerFinderResponsive",
     ResetOnSpawn = false,
     IgnoreGuiInset = true,
     ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 }, nil)
 
-local guiAttached = pcall(function()
-    Gui.Parent = parent
+ _ServerFinderState.guiAttached = pcall(function()
+    _ServerFinderState.Gui.Parent = parent
 end)
-if not guiAttached or not Gui.Parent then
-    Gui.Parent = Player:WaitForChild("PlayerGui")
+if not _ServerFinderState.guiAttached or not _ServerFinderState.Gui.Parent then
+    _ServerFinderState.Gui.Parent = _ServerFinderState.Player:WaitForChild("PlayerGui")
 end
 
 -- Destruir/reexecutar a interface encerra conexões globais e tarefas desta instância.
-Gui.Destroying:Connect(function()
-    destroyed = true
-    for _, connection in pairs({loadingConnection, inputChangedConnection, teleportInitFailedConnection}) do
+_ServerFinderState.Gui.Destroying:Connect(function()
+    _ServerFinderState.destroyed = true
+    for _, connection in pairs({_ServerFinderState.loadingConnection, _ServerFinderState.inputChangedConnection, _ServerFinderState.teleportInitFailedConnection}) do
         if connection then
             pcall(function()
                 connection:Disconnect()
@@ -1351,62 +1377,62 @@ Gui.Destroying:Connect(function()
     end
 end)
 
-local Window = create("Frame", {
-    Size = UDim2.fromOffset(BASE_WIDTH, BASE_HEIGHT),
+ _ServerFinderState.Window = _ServerFinderState.create("Frame", {
+    Size = UDim2.fromOffset(_ServerFinderState.BASE_WIDTH, _ServerFinderState.BASE_HEIGHT),
     Position = UDim2.fromScale(0.5, 0.5),
     AnchorPoint = Vector2.new(0.5, 0.5),
     BackgroundColor3 = Color3.fromRGB(15, 18, 27),
     BorderSizePixel = 0,
-}, Gui)
-corner(Window, 14)
-stroke(Window, Color3.fromRGB(70, 82, 110), 1, 0.45)
-create("UIGradient", {
+}, _ServerFinderState.Gui)
+_ServerFinderState.corner(_ServerFinderState.Window, 14)
+_ServerFinderState.stroke(_ServerFinderState.Window, Color3.fromRGB(70, 82, 110), 1, 0.45)
+_ServerFinderState.create("UIGradient", {
     Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(21, 27, 40)),
         ColorSequenceKeypoint.new(1, Color3.fromRGB(12, 15, 23)),
     }),
     Rotation = 90,
-}, Window)
+}, _ServerFinderState.Window)
 
-local WindowScale = create("UIScale", {
+ _ServerFinderState.WindowScale = _ServerFinderState.create("UIScale", {
     Scale = 1,
-}, Window)
+}, _ServerFinderState.Window)
 
-local function getViewport()
+_ServerFinderState.getViewport = function()
     local camera = workspace.CurrentCamera
     if camera then
         return camera.ViewportSize
     end
-    return Vector2.new(BASE_WIDTH + 30, BASE_HEIGHT + 30)
+    return Vector2.new(_ServerFinderState.BASE_WIDTH + 30, _ServerFinderState.BASE_HEIGHT + 30)
 end
 
-local function applyResponsiveScale()
-    if destroyed or not Window.Parent then
+_ServerFinderState.applyResponsiveScale = function()
+    if _ServerFinderState.destroyed or not _ServerFinderState.Window.Parent then
         return
     end
 
-    local viewport = getViewport()
-    local baseWidth = math.max(1, Window.Size.X.Offset)
-    local baseHeight = math.max(1, Window.Size.Y.Offset)
+    local viewport = _ServerFinderState.getViewport()
+    local baseWidth = math.max(1, _ServerFinderState.Window.Size.X.Offset)
+    local baseHeight = math.max(1, _ServerFinderState.Window.Size.Y.Offset)
     local widthScale = math.max(1, viewport.X - 24) / baseWidth
     local heightScale = math.max(1, viewport.Y - 24) / baseHeight
     local fitScale = math.max(0.1, math.min(widthScale, heightScale))
-    local maximumAllowed = math.min(MAX_USER_SCALE, fitScale)
-    currentScale = math.min(math.max(0.1, manualScale), maximumAllowed)
-    WindowScale.Scale = currentScale
+    local maximumAllowed = math.min(_ServerFinderState.MAX_USER_SCALE, fitScale)
+    _ServerFinderState.currentScale = math.min(math.max(0.1, _ServerFinderState.manualScale), maximumAllowed)
+    _ServerFinderState.WindowScale.Scale = _ServerFinderState.currentScale
 end
 
-local function clampWindowToViewport()
-    if destroyed or not Window.Parent then
+_ServerFinderState.clampWindowToViewport = function()
+    if _ServerFinderState.destroyed or not _ServerFinderState.Window.Parent then
         return
     end
 
-    local viewport = getViewport()
-    local absoluteSize = Window.AbsoluteSize
+    local viewport = _ServerFinderState.getViewport()
+    local absoluteSize = _ServerFinderState.Window.AbsoluteSize
     local windowWidth = math.max(1, absoluteSize.X)
     local windowHeight = math.max(1, absoluteSize.Y)
     local margin = 6
-    local position = Window.Position
+    local position = _ServerFinderState.Window.Position
 
     local positionX = viewport.X * position.X.Scale + position.X.Offset
     local positionY = viewport.Y * position.Y.Scale + position.Y.Offset
@@ -1416,13 +1442,13 @@ local function clampWindowToViewport()
     local maximumY = viewport.Y - windowHeight / 2 - margin
 
     local clampedX = minimumX <= maximumX
-        and clamp(positionX, minimumX, maximumX)
+        and _ServerFinderState.clamp(positionX, minimumX, maximumX)
         or viewport.X / 2
     local clampedY = minimumY <= maximumY
-        and clamp(positionY, minimumY, maximumY)
+        and _ServerFinderState.clamp(positionY, minimumY, maximumY)
         or viewport.Y / 2
 
-    Window.Position = UDim2.new(
+    _ServerFinderState.Window.Position = UDim2.new(
         position.X.Scale,
         clampedX - viewport.X * position.X.Scale,
         position.Y.Scale,
@@ -1430,35 +1456,35 @@ local function clampWindowToViewport()
     )
 end
 
-local Header = create("Frame", {
+ _ServerFinderState.Header = _ServerFinderState.create("Frame", {
     Size = UDim2.new(1, 0, 0, 48),
     BackgroundColor3 = Color3.fromRGB(25, 30, 44),
     BorderSizePixel = 0,
-}, Window)
-corner(Header, 14)
-create("Frame", {
+}, _ServerFinderState.Window)
+_ServerFinderState.corner(_ServerFinderState.Header, 14)
+_ServerFinderState.create("Frame", {
     Size = UDim2.new(1, 0, 0, 15),
     Position = UDim2.new(0, 0, 1, -15),
     BackgroundColor3 = Color3.fromRGB(25, 30, 44),
     BorderSizePixel = 0,
-}, Header)
-create("Frame", {
+}, _ServerFinderState.Header)
+_ServerFinderState.create("Frame", {
     Size = UDim2.new(1, -24, 0, 2),
     Position = UDim2.fromOffset(12, 46),
     BackgroundColor3 = Color3.fromRGB(75, 218, 225),
     BorderSizePixel = 0,
-}, Header)
+}, _ServerFinderState.Header)
 
-local OwnerAvatar = create("ImageLabel", {
+ _ServerFinderState.OwnerAvatar = _ServerFinderState.create("ImageLabel", {
     Size = UDim2.fromOffset(34, 34),
     Position = UDim2.fromOffset(12, 7),
     BackgroundColor3 = Color3.fromRGB(48, 52, 68),
     BorderSizePixel = 0,
     Image = "",
-}, Header)
-corner(OwnerAvatar, 17)
+}, _ServerFinderState.Header)
+_ServerFinderState.corner(_ServerFinderState.OwnerAvatar, 17)
 
-local HubTitle = create("TextLabel", {
+ _ServerFinderState.HubTitle = _ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -235, 0, 23),
     Position = UDim2.fromOffset(56, 3),
     BackgroundTransparency = 1,
@@ -1469,9 +1495,9 @@ local HubTitle = create("TextLabel", {
     TextSize = 16,
     Font = Enum.Font.SourceSansBold,
     TextXAlignment = Enum.TextXAlignment.Left,
-}, Header)
+}, _ServerFinderState.Header)
 
-local TitleShine = create("UIGradient", {
+ _ServerFinderState.TitleShine = _ServerFinderState.create("UIGradient", {
     Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(140, 82, 18)),
         ColorSequenceKeypoint.new(0.28, Color3.fromRGB(255, 202, 83)),
@@ -1481,23 +1507,23 @@ local TitleShine = create("UIGradient", {
     }),
     Offset = Vector2.new(-1, 0),
     Rotation = 0,
-}, HubTitle)
+}, _ServerFinderState.HubTitle)
 
 -- Reflexo animado para o dourado parecer metálico, sem perder legibilidade.
 task.spawn(function()
-    while not destroyed and TitleShine.Parent do
+    while not _ServerFinderState.destroyed and _ServerFinderState.TitleShine.Parent do
         for offset = -1, 1, 0.035 do
-            if destroyed or not TitleShine.Parent then
+            if _ServerFinderState.destroyed or not _ServerFinderState.TitleShine.Parent then
                 return
             end
-            TitleShine.Offset = Vector2.new(offset, 0)
+            _ServerFinderState.TitleShine.Offset = Vector2.new(offset, 0)
             task.wait(0.035)
         end
         task.wait(0.65)
     end
 end)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -235, 0, 17),
     Position = UDim2.fromOffset(57, 25),
     BackgroundTransparency = 1,
@@ -1506,9 +1532,9 @@ create("TextLabel", {
     TextSize = 11,
     Font = Enum.Font.SourceSans,
     TextXAlignment = Enum.TextXAlignment.Left,
-}, Header)
+}, _ServerFinderState.Header)
 
-local Minimize = create("TextButton", {
+ _ServerFinderState.Minimize = _ServerFinderState.create("TextButton", {
     Size = UDim2.fromOffset(30, 30),
     Position = UDim2.new(1, -72, 0, 9),
     BackgroundColor3 = Color3.fromRGB(75, 80, 100),
@@ -1516,10 +1542,10 @@ local Minimize = create("TextButton", {
     TextColor3 = Color3.fromRGB(255, 255, 255),
     TextSize = 18,
     Font = Enum.Font.SourceSansBold,
-}, Header)
-corner(Minimize, 7)
+}, _ServerFinderState.Header)
+_ServerFinderState.corner(_ServerFinderState.Minimize, 7)
 
-local Close = create("TextButton", {
+ _ServerFinderState.Close = _ServerFinderState.create("TextButton", {
     Size = UDim2.fromOffset(30, 30),
     Position = UDim2.new(1, -38, 0, 9),
     BackgroundColor3 = Color3.fromRGB(190, 55, 65),
@@ -1527,19 +1553,19 @@ local Close = create("TextButton", {
     TextColor3 = Color3.fromRGB(255, 255, 255),
     TextSize = 20,
     Font = Enum.Font.SourceSansBold,
-}, Header)
-corner(Close, 7)
+}, _ServerFinderState.Header)
+_ServerFinderState.corner(_ServerFinderState.Close, 7)
 
-local Sidebar = create("Frame", {
+ _ServerFinderState.Sidebar = _ServerFinderState.create("Frame", {
     Size = UDim2.new(0, 132, 1, -60),
     Position = UDim2.fromOffset(10, 56),
     BackgroundColor3 = Color3.fromRGB(20, 24, 35),
     BorderSizePixel = 0,
-}, Window)
-corner(Sidebar, 10)
-stroke(Sidebar, Color3.fromRGB(78, 93, 122), 1, 0.68)
+}, _ServerFinderState.Window)
+_ServerFinderState.corner(_ServerFinderState.Sidebar, 10)
+_ServerFinderState.stroke(_ServerFinderState.Sidebar, Color3.fromRGB(78, 93, 122), 1, 0.68)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -16, 0, 15),
     Position = UDim2.fromOffset(8, 4),
     BackgroundTransparency = 1,
@@ -1548,15 +1574,15 @@ create("TextLabel", {
     TextSize = 9,
     Font = Enum.Font.SourceSansBold,
     TextXAlignment = Enum.TextXAlignment.Left,
-}, Sidebar)
+}, _ServerFinderState.Sidebar)
 
-local Main = create("Frame", {
+ _ServerFinderState.Main = _ServerFinderState.create("Frame", {
     Size = UDim2.new(1, -162, 1, -60),
     Position = UDim2.fromOffset(152, 56),
     BackgroundTransparency = 1,
-}, Window)
+}, _ServerFinderState.Window)
 
-local ResizeGrip = create("TextButton", {
+ _ServerFinderState.ResizeGrip = _ServerFinderState.create("TextButton", {
     Size = UDim2.fromOffset(22, 22),
     Position = UDim2.new(1, -7, 1, -7),
     AnchorPoint = Vector2.new(1, 1),
@@ -1569,24 +1595,24 @@ local ResizeGrip = create("TextButton", {
     Font = Enum.Font.SourceSansBold,
     AutoButtonColor = false,
     ZIndex = 30,
-}, Window)
-corner(ResizeGrip, 6)
-stroke(ResizeGrip, Color3.fromRGB(90, 210, 230), 1, 0.25)
+}, _ServerFinderState.Window)
+_ServerFinderState.corner(_ServerFinderState.ResizeGrip, 6)
+_ServerFinderState.stroke(_ServerFinderState.ResizeGrip, Color3.fromRGB(90, 210, 230), 1, 0.25)
 
-local Pages = {}
+ _ServerFinderState.Pages = {}
 
-local function makePage(name)
-    local page = create("Frame", {
+_ServerFinderState.makePage = function(name)
+    local page = _ServerFinderState.create("Frame", {
         Size = UDim2.new(1, 0, 1, 0),
         BackgroundTransparency = 1,
         Visible = false,
-    }, Main)
-    Pages[name] = page
+    }, _ServerFinderState.Main)
+    _ServerFinderState.Pages[name] = page
     return page
 end
 
-local function makeTab(name, text, order, color)
-    local button = create("TextButton", {
+_ServerFinderState.makeTab = function(name, text, order, color)
+    local button = _ServerFinderState.create("TextButton", {
         Size = UDim2.new(1, -16, 0, 42),
         Position = UDim2.new(0, 8, 0, 26 + (order - 1) * 50),
         BackgroundColor3 = Color3.fromRGB(40, 43, 57),
@@ -1596,14 +1622,14 @@ local function makeTab(name, text, order, color)
         TextXAlignment = Enum.TextXAlignment.Left,
         Font = Enum.Font.SourceSansBold,
         AutoButtonColor = false,
-    }, Sidebar)
+    }, _ServerFinderState.Sidebar)
     button:SetAttribute("ActiveColor", color or Color3.fromRGB(0, 135, 190))
-    corner(button, 8)
-    create("UIPadding", {
+    _ServerFinderState.corner(button, 8)
+    _ServerFinderState.create("UIPadding", {
         PaddingLeft = UDim.new(0, 15),
     }, button)
-    TabStrokes[name] = stroke(button, Color3.fromRGB(255, 255, 255), 1, 0.9)
-    local indicator = create("Frame", {
+    _ServerFinderState.TabStrokes[name] = _ServerFinderState.stroke(button, Color3.fromRGB(255, 255, 255), 1, 0.9)
+    local indicator = _ServerFinderState.create("Frame", {
         Size = UDim2.fromOffset(4, 26),
         Position = UDim2.fromOffset(5, 8),
         BackgroundColor3 = color or Color3.fromRGB(0, 135, 190),
@@ -1611,40 +1637,40 @@ local function makeTab(name, text, order, color)
         Visible = false,
         Active = false,
     }, button)
-    corner(indicator, 2)
-    TabIndicators[name] = indicator
+    _ServerFinderState.corner(indicator, 2)
+    _ServerFinderState.TabIndicators[name] = indicator
     button.MouseEnter:Connect(function()
         if not button:GetAttribute("IsActive") then
-            button.BackgroundColor3 = Themes[currentThemeName].colors.tabHover
-            if TabStrokes[name] then
-                TabStrokes[name].Transparency = 0.55
+            button.BackgroundColor3 = _ServerFinderState.Themes[_ServerFinderState.currentThemeName].colors.tabHover
+            if _ServerFinderState.TabStrokes[name] then
+                _ServerFinderState.TabStrokes[name].Transparency = 0.55
             end
         end
     end)
     button.MouseLeave:Connect(function()
         if not button:GetAttribute("IsActive") then
-            button.BackgroundColor3 = Themes[currentThemeName].colors.tab
-            if TabStrokes[name] then
-                TabStrokes[name].Transparency = 0.9
+            button.BackgroundColor3 = _ServerFinderState.Themes[_ServerFinderState.currentThemeName].colors.tab
+            if _ServerFinderState.TabStrokes[name] then
+                _ServerFinderState.TabStrokes[name].Transparency = 0.9
             end
         end
     end)
-    TabButtons[name] = button
+    _ServerFinderState.TabButtons[name] = button
     return button
 end
 
-local SearchPage = makePage("Buscar")
-local ChatPage = makePage("Chat")
-local ScriptsPage = makePage("Scripts")
-local ConfigsPage = makePage("Configs")
-local InfoPage = makePage("Info")
+ _ServerFinderState.SearchPage = _ServerFinderState.makePage("Buscar")
+ _ServerFinderState.ChatPage = _ServerFinderState.makePage("Chat")
+ _ServerFinderState.ScriptsPage = _ServerFinderState.makePage("Scripts")
+ _ServerFinderState.ConfigsPage = _ServerFinderState.makePage("Configs")
+ _ServerFinderState.InfoPage = _ServerFinderState.makePage("Info")
 
-local SearchTab = makeTab("Buscar", "⌂  BUSCAR", 1)
-local ChatTab = makeTab("Chat", "☵  CHAT BOT", 2)
-local ScriptsTab = makeTab("Scripts", "▤  SCRIPTS", 3)
-local ConfigsTab = makeTab("Configs", "⚙  CONFIGS", 4, Color3.fromRGB(112, 78, 178))
+ _ServerFinderState.SearchTab = _ServerFinderState.makeTab("Buscar", "⌂  BUSCAR", 1)
+ _ServerFinderState.ChatTab = _ServerFinderState.makeTab("Chat", "☵  CHAT BOT", 2)
+ _ServerFinderState.ScriptsTab = _ServerFinderState.makeTab("Scripts", "▤  SCRIPTS", 3)
+ _ServerFinderState.ConfigsTab = _ServerFinderState.makeTab("Configs", "⚙  CONFIGS", 4, Color3.fromRGB(112, 78, 178))
 
-InfoTab = create("TextButton", {
+_ServerFinderState.InfoTab = _ServerFinderState.create("TextButton", {
     Size = UDim2.fromOffset(52, 30),
     Position = UDim2.new(1, -132, 0, 9),
     BackgroundColor3 = Color3.fromRGB(42, 57, 75),
@@ -1653,74 +1679,74 @@ InfoTab = create("TextButton", {
     TextSize = 11,
     Font = Enum.Font.SourceSansBold,
     AutoButtonColor = false,
-}, Header)
-corner(InfoTab, 7)
-stroke(InfoTab, Color3.fromRGB(95, 220, 225), 1, 0.35)
-InfoTab.MouseEnter:Connect(function()
-    InfoTab.BackgroundColor3 = Themes[currentThemeName].colors.tabHover
+}, _ServerFinderState.Header)
+_ServerFinderState.corner(_ServerFinderState.InfoTab, 7)
+_ServerFinderState.stroke(_ServerFinderState.InfoTab, Color3.fromRGB(95, 220, 225), 1, 0.35)
+_ServerFinderState.InfoTab.MouseEnter:Connect(function()
+    _ServerFinderState.InfoTab.BackgroundColor3 = _ServerFinderState.Themes[_ServerFinderState.currentThemeName].colors.tabHover
 end)
-InfoTab.MouseLeave:Connect(function()
-    InfoTab.BackgroundColor3 = Themes[currentThemeName].colors.infoButton
+_ServerFinderState.InfoTab.MouseLeave:Connect(function()
+    _ServerFinderState.InfoTab.BackgroundColor3 = _ServerFinderState.Themes[_ServerFinderState.currentThemeName].colors.infoButton
 end)
 
-local function showPage(name)
-    local colors = Themes[currentThemeName].colors
-    for pageName, page in pairs(Pages) do
+_ServerFinderState.showPage = function(name)
+    local colors = _ServerFinderState.Themes[_ServerFinderState.currentThemeName].colors
+    for pageName, page in pairs(_ServerFinderState.Pages) do
         page.Visible = pageName == name
     end
-    for tabName, button in pairs(TabButtons) do
+    for tabName, button in pairs(_ServerFinderState.TabButtons) do
         local activeColor = button:GetAttribute("ActiveColor") or colors.primary
         local isActive = tabName == name
         button:SetAttribute("IsActive", isActive)
         button.BackgroundColor3 = isActive and activeColor or colors.tab
-        if TabIndicators[tabName] then
-            TabIndicators[tabName].Visible = isActive
-            TabIndicators[tabName].BackgroundColor3 = activeColor
+        if _ServerFinderState.TabIndicators[tabName] then
+            _ServerFinderState.TabIndicators[tabName].Visible = isActive
+            _ServerFinderState.TabIndicators[tabName].BackgroundColor3 = activeColor
         end
-        if TabStrokes[tabName] then
-            TabStrokes[tabName].Color = isActive and activeColor or colors.border
-            TabStrokes[tabName].Transparency = isActive and 0.25 or 0.9
+        if _ServerFinderState.TabStrokes[tabName] then
+            _ServerFinderState.TabStrokes[tabName].Color = isActive and activeColor or colors.border
+            _ServerFinderState.TabStrokes[tabName].Transparency = isActive and 0.25 or 0.9
         end
     end
-    InfoTab:SetAttribute("IsActive", name == "Info")
-    InfoTab.BackgroundColor3 = name == "Info" and colors.primary or colors.infoButton
-    InfoTab.TextColor3 = name == "Info" and colors.textBright or colors.textAccent
+    _ServerFinderState.InfoTab:SetAttribute("IsActive", name == "Info")
+    _ServerFinderState.InfoTab.BackgroundColor3 = name == "Info" and colors.primary or colors.infoButton
+    _ServerFinderState.InfoTab.TextColor3 = name == "Info" and colors.textBright or colors.textAccent
 end
 
-SearchTab.MouseButton1Click:Connect(function()
-    showPage("Buscar")
+_ServerFinderState.SearchTab.MouseButton1Click:Connect(function()
+    _ServerFinderState.showPage("Buscar")
 end)
-ChatTab.MouseButton1Click:Connect(function()
-    showPage("Chat")
+_ServerFinderState.ChatTab.MouseButton1Click:Connect(function()
+    _ServerFinderState.showPage("Chat")
 end)
-ScriptsTab.MouseButton1Click:Connect(function()
-    showPage("Scripts")
+_ServerFinderState.ScriptsTab.MouseButton1Click:Connect(function()
+    _ServerFinderState.showPage("Scripts")
 end)
-ConfigsTab.MouseButton1Click:Connect(function()
-    showPage("Configs")
+_ServerFinderState.ConfigsTab.MouseButton1Click:Connect(function()
+    _ServerFinderState.showPage("Configs")
 end)
-InfoTab.MouseButton1Click:Connect(function()
-    showPage("Info")
+_ServerFinderState.InfoTab.MouseButton1Click:Connect(function()
+    _ServerFinderState.showPage("Info")
 end)
 
 -- Página Buscar.
-local SearchCard = create("Frame", {
+ _ServerFinderState.SearchCard = _ServerFinderState.create("Frame", {
     Size = UDim2.new(1, 0, 0, 238),
     Position = UDim2.fromOffset(0, 0),
     BackgroundColor3 = Color3.fromRGB(23, 28, 41),
     BorderSizePixel = 0,
-}, SearchPage)
-corner(SearchCard, 11)
-stroke(SearchCard, Color3.fromRGB(70, 93, 125), 1, 0.72)
+}, _ServerFinderState.SearchPage)
+_ServerFinderState.corner(_ServerFinderState.SearchCard, 11)
+_ServerFinderState.stroke(_ServerFinderState.SearchCard, Color3.fromRGB(70, 93, 125), 1, 0.72)
 
-create("Frame", {
+_ServerFinderState.create("Frame", {
     Size = UDim2.fromOffset(4, 72),
     Position = UDim2.fromOffset(0, 18),
     BackgroundColor3 = Color3.fromRGB(75, 218, 225),
     BorderSizePixel = 0,
-}, SearchCard)
+}, _ServerFinderState.SearchCard)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 34),
     Position = UDim2.fromOffset(16, 15),
     BackgroundTransparency = 1,
@@ -1729,9 +1755,9 @@ create("TextLabel", {
     TextSize = 19,
     Font = Enum.Font.SourceSansBold,
     TextXAlignment = Enum.TextXAlignment.Left,
-}, SearchPage)
+}, _ServerFinderState.SearchPage)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 36),
     Position = UDim2.fromOffset(16, 49),
     BackgroundTransparency = 1,
@@ -1741,9 +1767,9 @@ create("TextLabel", {
     TextWrapped = true,
     Font = Enum.Font.SourceSans,
     TextXAlignment = Enum.TextXAlignment.Left,
-}, SearchPage)
+}, _ServerFinderState.SearchPage)
 
-SearchStatus = create("TextLabel", {
+_ServerFinderState.SearchStatus = _ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, 0, 0, 48),
     Position = UDim2.new(0, 0, 1, -58),
     BackgroundColor3 = Color3.fromRGB(28, 31, 42),
@@ -1752,12 +1778,12 @@ SearchStatus = create("TextLabel", {
     TextSize = 12,
     TextWrapped = true,
     Font = Enum.Font.SourceSans,
-}, SearchPage)
-corner(SearchStatus, 8)
-stroke(SearchStatus, Color3.fromRGB(98, 105, 135), 1, 0.72)
+}, _ServerFinderState.SearchPage)
+_ServerFinderState.corner(_ServerFinderState.SearchStatus, 8)
+_ServerFinderState.stroke(_ServerFinderState.SearchStatus, Color3.fromRGB(98, 105, 135), 1, 0.72)
 
-local function searchButton(text, position, color)
-    local button = create("TextButton", {
+_ServerFinderState.searchButton = function(text, position, color)
+    local button = _ServerFinderState.create("TextButton", {
         Size = UDim2.fromOffset(205, 46),
         Position = position,
         BackgroundColor3 = color,
@@ -1765,9 +1791,9 @@ local function searchButton(text, position, color)
         TextColor3 = Color3.fromRGB(255, 255, 255),
         TextSize = 13,
         Font = Enum.Font.SourceSansBold,
-    }, SearchPage)
-    corner(button, 9)
-    styleButton(button, color, Color3.fromRGB(
+    }, _ServerFinderState.SearchPage)
+    _ServerFinderState.corner(button, 9)
+    _ServerFinderState.styleButton(button, color, Color3.fromRGB(
         math.min(color.R * 1.16 + 0.03, 1),
         math.min(color.G * 1.16 + 0.03, 1),
         math.min(color.B * 1.16 + 0.03, 1)
@@ -1775,10 +1801,10 @@ local function searchButton(text, position, color)
     return button
 end
 
-local BRButton = searchButton("Servidor BR", UDim2.fromOffset(0, 88), Color3.fromRGB(0, 145, 75))
-local ENButton = searchButton("English Server", UDim2.fromOffset(220, 88), Color3.fromRGB(65, 70, 88))
-disableButton(ENButton, Color3.fromRGB(65, 70, 88))
-create("TextLabel", {
+ _ServerFinderState.BRButton = _ServerFinderState.searchButton("Servidor BR", UDim2.fromOffset(0, 88), Color3.fromRGB(0, 145, 75))
+ _ServerFinderState.ENButton = _ServerFinderState.searchButton("English Server", UDim2.fromOffset(220, 88), Color3.fromRGB(65, 70, 88))
+_ServerFinderState.disableButton(_ServerFinderState.ENButton, Color3.fromRGB(65, 70, 88))
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.fromOffset(205, 18),
     Position = UDim2.fromOffset(220, 70),
     BackgroundTransparency = 1,
@@ -1787,26 +1813,26 @@ create("TextLabel", {
     TextSize = 10,
     Font = Enum.Font.SourceSansBold,
     TextXAlignment = Enum.TextXAlignment.Center,
-}, SearchPage)
-local VerifiedButton = searchButton(
+}, _ServerFinderState.SearchPage)
+ _ServerFinderState.VerifiedButton = _ServerFinderState.searchButton(
     "Procurar usuário verificado",
     UDim2.fromOffset(0, 148),
     Color3.fromRGB(120, 55, 190)
 )
-local RandomButton = searchButton("Servidor aleatório", UDim2.fromOffset(220, 148), Color3.fromRGB(205, 115, 0))
+ _ServerFinderState.RandomButton = _ServerFinderState.searchButton("Servidor aleatório", UDim2.fromOffset(220, 148), Color3.fromRGB(205, 115, 0))
 
-local VerifiedPopup = create("Frame", {
+ _ServerFinderState.VerifiedPopup = _ServerFinderState.create("Frame", {
     Size = UDim2.fromOffset(390, 185),
     Position = UDim2.new(0.5, -195, 0.5, -92),
     BackgroundColor3 = Color3.fromRGB(29, 32, 44),
     BorderSizePixel = 0,
     Visible = false,
     ZIndex = 20,
-}, Window)
-corner(VerifiedPopup, 12)
-stroke(VerifiedPopup, Color3.fromRGB(100, 115, 145), 1, 0.25)
+}, _ServerFinderState.Window)
+_ServerFinderState.corner(_ServerFinderState.VerifiedPopup, 12)
+_ServerFinderState.stroke(_ServerFinderState.VerifiedPopup, Color3.fromRGB(100, 115, 145), 1, 0.25)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -55, 0, 34),
     Position = UDim2.fromOffset(15, 12),
     BackgroundTransparency = 1,
@@ -1816,9 +1842,9 @@ create("TextLabel", {
     Font = Enum.Font.SourceSansBold,
     TextXAlignment = Enum.TextXAlignment.Left,
     ZIndex = 21,
-}, VerifiedPopup)
+}, _ServerFinderState.VerifiedPopup)
 
-local VerifiedClose = create("TextButton", {
+ _ServerFinderState.VerifiedClose = _ServerFinderState.create("TextButton", {
     Size = UDim2.fromOffset(28, 28),
     Position = UDim2.new(1, -38, 0, 10),
     BackgroundColor3 = Color3.fromRGB(190, 55, 65),
@@ -1827,10 +1853,10 @@ local VerifiedClose = create("TextButton", {
     TextSize = 18,
     Font = Enum.Font.SourceSansBold,
     ZIndex = 21,
-}, VerifiedPopup)
-corner(VerifiedClose, 7)
+}, _ServerFinderState.VerifiedPopup)
+_ServerFinderState.corner(_ServerFinderState.VerifiedClose, 7)
 
-local VerifiedInput = create("TextBox", {
+ _ServerFinderState.VerifiedInput = _ServerFinderState.create("TextBox", {
     Size = UDim2.new(1, -130, 0, 38),
     Position = UDim2.fromOffset(15, 62),
     BackgroundColor3 = Color3.fromRGB(40, 43, 57),
@@ -1842,10 +1868,10 @@ local VerifiedInput = create("TextBox", {
     Font = Enum.Font.SourceSans,
     ClearTextOnFocus = false,
     ZIndex = 21,
-}, VerifiedPopup)
-corner(VerifiedInput, 8)
+}, _ServerFinderState.VerifiedPopup)
+_ServerFinderState.corner(_ServerFinderState.VerifiedInput, 8)
 
-local VerifiedSearch = create("TextButton", {
+ _ServerFinderState.VerifiedSearch = _ServerFinderState.create("TextButton", {
     Size = UDim2.fromOffset(100, 38),
     Position = UDim2.new(1, -115, 0, 62),
     BackgroundColor3 = Color3.fromRGB(0, 135, 190),
@@ -1854,10 +1880,10 @@ local VerifiedSearch = create("TextButton", {
     TextSize = 13,
     Font = Enum.Font.SourceSansBold,
     ZIndex = 21,
-}, VerifiedPopup)
-corner(VerifiedSearch, 8)
+}, _ServerFinderState.VerifiedPopup)
+_ServerFinderState.corner(_ServerFinderState.VerifiedSearch, 8)
 
-local VerifiedStatus = create("TextLabel", {
+ _ServerFinderState.VerifiedStatus = _ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -30, 0, 55),
     Position = UDim2.fromOffset(15, 112),
     BackgroundTransparency = 1,
@@ -1868,20 +1894,20 @@ local VerifiedStatus = create("TextLabel", {
     Font = Enum.Font.SourceSans,
     TextXAlignment = Enum.TextXAlignment.Left,
     ZIndex = 21,
-}, VerifiedPopup)
+}, _ServerFinderState.VerifiedPopup)
 
-local TeleportConfirmPopup = create("Frame", {
+ _ServerFinderState.TeleportConfirmPopup = _ServerFinderState.create("Frame", {
     Size = UDim2.fromOffset(410, 210),
     Position = UDim2.new(0.5, -205, 0.5, -105),
     BackgroundColor3 = Color3.fromRGB(29, 32, 44),
     BorderSizePixel = 0,
     Visible = false,
     ZIndex = 60,
-}, Window)
-corner(TeleportConfirmPopup, 12)
-stroke(TeleportConfirmPopup, Color3.fromRGB(92, 190, 220), 1, 0.2)
+}, _ServerFinderState.Window)
+_ServerFinderState.corner(_ServerFinderState.TeleportConfirmPopup, 12)
+_ServerFinderState.stroke(_ServerFinderState.TeleportConfirmPopup, Color3.fromRGB(92, 190, 220), 1, 0.2)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -30, 0, 34),
     Position = UDim2.fromOffset(15, 14),
     BackgroundTransparency = 1,
@@ -1891,9 +1917,9 @@ create("TextLabel", {
     Font = Enum.Font.SourceSansBold,
     TextXAlignment = Enum.TextXAlignment.Left,
     ZIndex = 61,
-}, TeleportConfirmPopup)
+}, _ServerFinderState.TeleportConfirmPopup)
 
-local TeleportConfirmMessage = create("TextLabel", {
+ _ServerFinderState.TeleportConfirmMessage = _ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -30, 0, 82),
     Position = UDim2.fromOffset(15, 55),
     BackgroundTransparency = 1,
@@ -1905,9 +1931,9 @@ local TeleportConfirmMessage = create("TextLabel", {
     TextXAlignment = Enum.TextXAlignment.Left,
     TextYAlignment = Enum.TextYAlignment.Top,
     ZIndex = 61,
-}, TeleportConfirmPopup)
+}, _ServerFinderState.TeleportConfirmPopup)
 
-local TeleportCancelButton = create("TextButton", {
+ _ServerFinderState.TeleportCancelButton = _ServerFinderState.create("TextButton", {
     Size = UDim2.fromOffset(150, 38),
     Position = UDim2.new(0, 15, 1, -53),
     BackgroundColor3 = Color3.fromRGB(76, 82, 103),
@@ -1916,11 +1942,11 @@ local TeleportCancelButton = create("TextButton", {
     TextSize = 12,
     Font = Enum.Font.SourceSansBold,
     ZIndex = 61,
-}, TeleportConfirmPopup)
-corner(TeleportCancelButton, 8)
-styleButton(TeleportCancelButton, Color3.fromRGB(76, 82, 103), Color3.fromRGB(94, 102, 128))
+}, _ServerFinderState.TeleportConfirmPopup)
+_ServerFinderState.corner(_ServerFinderState.TeleportCancelButton, 8)
+_ServerFinderState.styleButton(_ServerFinderState.TeleportCancelButton, Color3.fromRGB(76, 82, 103), Color3.fromRGB(94, 102, 128))
 
-local TeleportContinueButton = create("TextButton", {
+ _ServerFinderState.TeleportContinueButton = _ServerFinderState.create("TextButton", {
     Size = UDim2.fromOffset(210, 38),
     Position = UDim2.new(1, -225, 1, -53),
     BackgroundColor3 = Color3.fromRGB(0, 145, 185),
@@ -1929,12 +1955,12 @@ local TeleportContinueButton = create("TextButton", {
     TextSize = 12,
     Font = Enum.Font.SourceSansBold,
     ZIndex = 61,
-}, TeleportConfirmPopup)
-corner(TeleportContinueButton, 8)
-styleButton(TeleportContinueButton, Color3.fromRGB(0, 145, 185), Color3.fromRGB(25, 175, 215))
+}, _ServerFinderState.TeleportConfirmPopup)
+_ServerFinderState.corner(_ServerFinderState.TeleportContinueButton, 8)
+_ServerFinderState.styleButton(_ServerFinderState.TeleportContinueButton, Color3.fromRGB(0, 145, 185), Color3.fromRGB(25, 175, 215))
 
 -- Aviso de inicialização e consentimento antes de consultar a localização pelo IP.
-local StartupOverlay = create("Frame", {
+ _ServerFinderState.StartupOverlay = _ServerFinderState.create("Frame", {
     Size = UDim2.fromScale(1, 1),
     Position = UDim2.fromScale(0, 0),
     BackgroundColor3 = Color3.fromRGB(5, 7, 12),
@@ -1942,19 +1968,19 @@ local StartupOverlay = create("Frame", {
     BorderSizePixel = 0,
     Active = true,
     ZIndex = 90,
-}, Window)
+}, _ServerFinderState.Window)
 
-local StartupPopup = create("Frame", {
+ _ServerFinderState.StartupPopup = _ServerFinderState.create("Frame", {
     Size = UDim2.fromOffset(430, 246),
     Position = UDim2.new(0.5, -215, 0.5, -123),
     BackgroundColor3 = Color3.fromRGB(29, 32, 44),
     BorderSizePixel = 0,
     ZIndex = 91,
-}, StartupOverlay)
-corner(StartupPopup, 12)
-stroke(StartupPopup, Color3.fromRGB(92, 190, 220), 1, 0.2)
+}, _ServerFinderState.StartupOverlay)
+_ServerFinderState.corner(_ServerFinderState.StartupPopup, 12)
+_ServerFinderState.stroke(_ServerFinderState.StartupPopup, Color3.fromRGB(92, 190, 220), 1, 0.2)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 30),
     Position = UDim2.fromOffset(14, 12),
     BackgroundTransparency = 1,
@@ -1964,9 +1990,9 @@ create("TextLabel", {
     Font = Enum.Font.SourceSansBold,
     TextXAlignment = Enum.TextXAlignment.Left,
     ZIndex = 92,
-}, StartupPopup)
+}, _ServerFinderState.StartupPopup)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 82),
     Position = UDim2.fromOffset(14, 47),
     BackgroundTransparency = 1,
@@ -1978,9 +2004,9 @@ create("TextLabel", {
     TextXAlignment = Enum.TextXAlignment.Left,
     TextYAlignment = Enum.TextYAlignment.Top,
     ZIndex = 92,
-}, StartupPopup)
+}, _ServerFinderState.StartupPopup)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 56),
     Position = UDim2.fromOffset(14, 133),
     BackgroundTransparency = 1,
@@ -1992,9 +2018,9 @@ create("TextLabel", {
     TextXAlignment = Enum.TextXAlignment.Left,
     TextYAlignment = Enum.TextYAlignment.Top,
     ZIndex = 92,
-}, StartupPopup)
+}, _ServerFinderState.StartupPopup)
 
-local StartupOkButton = create("TextButton", {
+ _ServerFinderState.StartupOkButton = _ServerFinderState.create("TextButton", {
     Size = UDim2.fromOffset(120, 36),
     Position = UDim2.new(1, -134, 1, -48),
     BackgroundColor3 = Color3.fromRGB(0, 135, 190),
@@ -2003,11 +2029,11 @@ local StartupOkButton = create("TextButton", {
     TextSize = 14,
     Font = Enum.Font.SourceSansBold,
     ZIndex = 92,
-}, StartupPopup)
-corner(StartupOkButton, 8)
-styleButton(StartupOkButton, Color3.fromRGB(0, 135, 190), Color3.fromRGB(25, 165, 215))
+}, _ServerFinderState.StartupPopup)
+_ServerFinderState.corner(_ServerFinderState.StartupOkButton, 8)
+_ServerFinderState.styleButton(_ServerFinderState.StartupOkButton, Color3.fromRGB(0, 135, 190), Color3.fromRGB(25, 165, 215))
 
-local StartupStatus = create("TextLabel", {
+ _ServerFinderState.StartupStatus = _ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -40, 0, 36),
     Position = UDim2.new(0, 20, 1, -48),
     BackgroundColor3 = Color3.fromRGB(27, 34, 48),
@@ -2020,102 +2046,102 @@ local StartupStatus = create("TextLabel", {
     TextWrapped = true,
     Font = Enum.Font.SourceSansBold,
     ZIndex = 100,
-}, Window)
-corner(StartupStatus, 8)
-stroke(StartupStatus, Color3.fromRGB(92, 190, 220), 1, 0.35)
+}, _ServerFinderState.Window)
+_ServerFinderState.corner(_ServerFinderState.StartupStatus, 8)
+_ServerFinderState.stroke(_ServerFinderState.StartupStatus, Color3.fromRGB(92, 190, 220), 1, 0.35)
 
-local teleportDecision
-local function askTeleportConfirmation(server, context, matchmaking)
+_ServerFinderState.teleportDecision = nil
+_ServerFinderState.askTeleportConfirmation = function(server, context, matchmaking)
     local playing = tonumber(server and server.playing)
     local maximum = tonumber(server and server.maxPlayers)
     local occupancy = playing and maximum and (tostring(playing) .. "/" .. tostring(maximum)) or "disponível"
     local target = context or "um novo servidor"
 
     if matchmaking then
-            TeleportConfirmMessage.Text = "O Roblox escolhe por localizacao e latencia; nao garante servidor brasileiro.\n"
+            _ServerFinderState.TeleportConfirmMessage.Text = "O Roblox escolhe por localizacao e latencia; nao garante servidor brasileiro.\n"
             .. "Você quer sair deste servidor e continuar?"
     else
-        TeleportConfirmMessage.Text = "Encontrei " .. target .. " (" .. occupancy .. ").\n"
+        _ServerFinderState.TeleportConfirmMessage.Text = "Encontrei " .. target .. " (" .. occupancy .. ").\n"
             .. "Você quer sair deste servidor e continuar para o destino encontrado?"
     end
-    teleportDecision = nil
-    TeleportConfirmPopup.Visible = true
+    _ServerFinderState.teleportDecision = nil
+    _ServerFinderState.TeleportConfirmPopup.Visible = true
 
-    while teleportDecision == nil and not destroyed do
+    while _ServerFinderState.teleportDecision == nil and not _ServerFinderState.destroyed do
         task.wait()
     end
 
-    local accepted = teleportDecision == true and not destroyed
-    teleportDecision = nil
-    if TeleportConfirmPopup.Parent then
-        TeleportConfirmPopup.Visible = false
+    local accepted = _ServerFinderState.teleportDecision == true and not _ServerFinderState.destroyed
+    _ServerFinderState.teleportDecision = nil
+    if _ServerFinderState.TeleportConfirmPopup.Parent then
+        _ServerFinderState.TeleportConfirmPopup.Visible = false
     end
     return accepted
 end
 
-TeleportCancelButton.MouseButton1Click:Connect(function()
-    teleportDecision = false
+_ServerFinderState.TeleportCancelButton.MouseButton1Click:Connect(function()
+    _ServerFinderState.teleportDecision = false
 end)
-TeleportContinueButton.MouseButton1Click:Connect(function()
-    teleportDecision = true
+_ServerFinderState.TeleportContinueButton.MouseButton1Click:Connect(function()
+    _ServerFinderState.teleportDecision = true
 end)
 
-local startupCountryCheckStarted = false
-StartupOkButton.MouseButton1Click:Connect(function()
-    if startupCountryCheckStarted then
+ _ServerFinderState.startupCountryCheckStarted = false
+_ServerFinderState.StartupOkButton.MouseButton1Click:Connect(function()
+    if _ServerFinderState.startupCountryCheckStarted then
         return
     end
-    startupCountryCheckStarted = true
-    StartupOverlay.Visible = false
-    StartupStatus.Visible = true
-    StartupStatus.Text = "Verificando o país pela conexão…"
-    StartupStatus.TextColor3 = Color3.fromRGB(220, 230, 245)
+    _ServerFinderState.startupCountryCheckStarted = true
+    _ServerFinderState.StartupOverlay.Visible = false
+    _ServerFinderState.StartupStatus.Visible = true
+    _ServerFinderState.StartupStatus.Text = "Verificando o país pela conexão…"
+    _ServerFinderState.StartupStatus.TextColor3 = Color3.fromRGB(220, 230, 245)
 
     task.spawn(function()
-        local country = lookupMyCountry()
-        if destroyed or not StartupStatus.Parent then
+        local country = _ServerFinderState.lookupMyCountry()
+        if _ServerFinderState.destroyed or not _ServerFinderState.StartupStatus.Parent then
             return
         end
 
         local message
         if country and country.countryCode == "BR" then
             message = "País detectado: Brasil (BR). A localização pelo IP é aproximada."
-            StartupStatus.TextColor3 = Color3.fromRGB(130, 225, 165)
+            _ServerFinderState.StartupStatus.TextColor3 = Color3.fromRGB(130, 225, 165)
         elseif country then
             message = "País detectado: " .. country.country .. " (" .. country.countryCode .. ")."
-            StartupStatus.TextColor3 = Color3.fromRGB(235, 205, 125)
+            _ServerFinderState.StartupStatus.TextColor3 = Color3.fromRGB(235, 205, 125)
         else
             message = "Não foi possível verificar o país pela conexão atual."
-            StartupStatus.TextColor3 = Color3.fromRGB(240, 145, 145)
+            _ServerFinderState.StartupStatus.TextColor3 = Color3.fromRGB(240, 145, 145)
         end
-        StartupStatus.Text = message
+        _ServerFinderState.StartupStatus.Text = message
         task.delay(6, function()
-            if not destroyed and StartupStatus.Parent and StartupStatus.Text == message then
-                StartupStatus.Visible = false
+            if not _ServerFinderState.destroyed and _ServerFinderState.StartupStatus.Parent and _ServerFinderState.StartupStatus.Text == message then
+                _ServerFinderState.StartupStatus.Visible = false
             end
         end)
     end)
 end)
 
-VerifiedButton.MouseButton1Click:Connect(function()
-    VerifiedPopup.Visible = true
-    VerifiedInput:CaptureFocus()
+_ServerFinderState.VerifiedButton.MouseButton1Click:Connect(function()
+    _ServerFinderState.VerifiedPopup.Visible = true
+    _ServerFinderState.VerifiedInput:CaptureFocus()
 end)
-VerifiedClose.MouseButton1Click:Connect(function()
-    VerifiedPopup.Visible = false
+_ServerFinderState.VerifiedClose.MouseButton1Click:Connect(function()
+    _ServerFinderState.VerifiedPopup.Visible = false
 end)
 
 -- Página Scripts.
-local ScriptsCard = create("Frame", {
+ _ServerFinderState.ScriptsCard = _ServerFinderState.create("Frame", {
     Size = UDim2.new(1, 0, 1, 0),
     Position = UDim2.fromOffset(0, 0),
     BackgroundColor3 = Color3.fromRGB(23, 28, 41),
     BorderSizePixel = 0,
-}, ScriptsPage)
-corner(ScriptsCard, 11)
-stroke(ScriptsCard, Color3.fromRGB(70, 93, 125), 1, 0.72)
+}, _ServerFinderState.ScriptsPage)
+_ServerFinderState.corner(_ServerFinderState.ScriptsCard, 11)
+_ServerFinderState.stroke(_ServerFinderState.ScriptsCard, Color3.fromRGB(70, 93, 125), 1, 0.72)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 40),
     Position = UDim2.new(0, 14, 0.5, -20),
     BackgroundTransparency = 1,
@@ -2125,19 +2151,19 @@ create("TextLabel", {
     Font = Enum.Font.SourceSansBold,
     TextXAlignment = Enum.TextXAlignment.Center,
     TextYAlignment = Enum.TextYAlignment.Center,
-}, ScriptsCard)
+}, _ServerFinderState.ScriptsCard)
 
 -- Página Configs.
-local ConfigsCard = create("Frame", {
+ _ServerFinderState.ConfigsCard = _ServerFinderState.create("Frame", {
     Size = UDim2.new(1, 0, 1, 0),
     Position = UDim2.fromOffset(0, 0),
     BackgroundColor3 = Color3.fromRGB(23, 28, 41),
     BorderSizePixel = 0,
-}, ConfigsPage)
-corner(ConfigsCard, 11)
-stroke(ConfigsCard, Color3.fromRGB(70, 93, 125), 1, 0.72)
+}, _ServerFinderState.ConfigsPage)
+_ServerFinderState.corner(_ServerFinderState.ConfigsCard, 11)
+_ServerFinderState.stroke(_ServerFinderState.ConfigsCard, Color3.fromRGB(70, 93, 125), 1, 0.72)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 30),
     Position = UDim2.fromOffset(14, 12),
     BackgroundTransparency = 1,
@@ -2146,9 +2172,9 @@ create("TextLabel", {
     TextSize = 20,
     Font = Enum.Font.SourceSansBold,
     TextXAlignment = Enum.TextXAlignment.Left,
-}, ConfigsCard)
+}, _ServerFinderState.ConfigsCard)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 28),
     Position = UDim2.fromOffset(14, 43),
     BackgroundTransparency = 1,
@@ -2157,20 +2183,20 @@ create("TextLabel", {
     TextSize = 12,
     Font = Enum.Font.SourceSans,
     TextXAlignment = Enum.TextXAlignment.Left,
-}, ConfigsCard)
+}, _ServerFinderState.ConfigsCard)
 
-ThemeStatus = create("TextLabel", {
+_ServerFinderState.ThemeStatus = _ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 24),
     Position = UDim2.fromOffset(14, 72),
     BackgroundTransparency = 1,
-    Text = "Tema atual: " .. Themes[Config.theme].label,
+    Text = "Tema atual: " .. _ServerFinderState.Themes[_ServerFinderState.Config.theme].label,
     TextColor3 = Color3.fromRGB(145, 240, 180),
     TextSize = 12,
     Font = Enum.Font.SourceSansBold,
     TextXAlignment = Enum.TextXAlignment.Left,
-}, ConfigsCard)
+}, _ServerFinderState.ConfigsCard)
 
-local ThemeList = create("ScrollingFrame", {
+ _ServerFinderState.ThemeList = _ServerFinderState.create("ScrollingFrame", {
     Size = UDim2.new(1, -28, 1, -179),
     Position = UDim2.fromOffset(14, 100),
     BackgroundTransparency = 1,
@@ -2179,24 +2205,24 @@ local ThemeList = create("ScrollingFrame", {
     ScrollBarThickness = 4,
     ScrollBarImageColor3 = Color3.fromRGB(75, 218, 225),
     ScrollingDirection = Enum.ScrollingDirection.Y,
-}, ConfigsCard)
-local ThemeGrid = create("UIGridLayout", {
+}, _ServerFinderState.ConfigsCard)
+ _ServerFinderState.ThemeGrid = _ServerFinderState.create("UIGridLayout", {
     CellSize = UDim2.new(0.5, -6, 0, 62),
     CellPadding = UDim2.fromOffset(8, 8),
     SortOrder = Enum.SortOrder.LayoutOrder,
-}, ThemeList)
-create("UIPadding", {
+}, _ServerFinderState.ThemeList)
+_ServerFinderState.create("UIPadding", {
     PaddingLeft = UDim.new(0, 2),
     PaddingRight = UDim.new(0, 2),
     PaddingTop = UDim.new(0, 2),
-}, ThemeList)
-ThemeGrid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    ThemeList.CanvasSize = UDim2.fromOffset(0, ThemeGrid.AbsoluteContentSize.Y + 8)
+}, _ServerFinderState.ThemeList)
+_ServerFinderState.ThemeGrid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    _ServerFinderState.ThemeList.CanvasSize = UDim2.fromOffset(0, _ServerFinderState.ThemeGrid.AbsoluteContentSize.Y + 8)
 end)
 
-local function themeOption(name, order)
-    local theme = Themes[name]
-    local button = create("TextButton", {
+_ServerFinderState.themeOption = function(name, order)
+    local theme = _ServerFinderState.Themes[name]
+    local button = _ServerFinderState.create("TextButton", {
         Size = UDim2.new(0.5, -6, 0, 62),
         LayoutOrder = order,
         BackgroundColor3 = Color3.fromRGB(40, 43, 57),
@@ -2208,23 +2234,23 @@ local function themeOption(name, order)
         TextYAlignment = Enum.TextYAlignment.Center,
         Font = Enum.Font.SourceSansBold,
         AutoButtonColor = false,
-    }, ThemeList)
-    corner(button, 9)
-    stroke(button, Color3.fromRGB(70, 93, 125), 1, 0.45)
-    create("UIPadding", {
+    }, _ServerFinderState.ThemeList)
+    _ServerFinderState.corner(button, 9)
+    _ServerFinderState.stroke(button, Color3.fromRGB(70, 93, 125), 1, 0.45)
+    _ServerFinderState.create("UIPadding", {
         PaddingLeft = UDim.new(0, 10),
         PaddingRight = UDim.new(0, 24),
     }, button)
 
-    local preview = create("Frame", {
+    local preview = _ServerFinderState.create("Frame", {
         Size = UDim2.fromOffset(10, 40),
         Position = UDim2.new(1, -20, 0.5, -20),
         BackgroundColor3 = theme.preview,
         BorderSizePixel = 0,
     }, button)
-    corner(preview, 5)
+    _ServerFinderState.corner(preview, 5)
 
-    table.insert(ThemeButtons, {
+    table.insert(_ServerFinderState.ThemeButtons, {
         name = name,
         label = theme.label,
         button = button,
@@ -2232,40 +2258,40 @@ local function themeOption(name, order)
     })
 
     button.MouseEnter:Connect(function()
-        if name ~= currentThemeName then
-            button.BackgroundColor3 = Themes[currentThemeName].colors.tabHover
+        if name ~= _ServerFinderState.currentThemeName then
+            button.BackgroundColor3 = _ServerFinderState.Themes[_ServerFinderState.currentThemeName].colors.tabHover
         end
     end)
     button.MouseLeave:Connect(function()
-        if name ~= currentThemeName then
-            button.BackgroundColor3 = Themes[currentThemeName].colors.tab
+        if name ~= _ServerFinderState.currentThemeName then
+            button.BackgroundColor3 = _ServerFinderState.Themes[_ServerFinderState.currentThemeName].colors.tab
         end
     end)
     button.MouseButton1Click:Connect(function()
-        applyTheme(name)
-        local saved, errorMessage = saveTheme()
+        _ServerFinderState.applyTheme(name)
+        local saved, errorMessage = _ServerFinderState.saveTheme()
         if saved then
-            ThemeStatus.Text = "✓ " .. theme.label .. " selecionado e salvo."
-            ThemeStatus.TextColor3 = Themes[name].colors.textSuccess
+            _ServerFinderState.ThemeStatus.Text = "✓ " .. theme.label .. " selecionado e salvo."
+            _ServerFinderState.ThemeStatus.TextColor3 = _ServerFinderState.Themes[name].colors.textSuccess
         else
-            ThemeStatus.Text = theme.label .. " selecionado. " .. tostring(errorMessage)
-            ThemeStatus.TextColor3 = Themes[name].colors.textWarning
+            _ServerFinderState.ThemeStatus.Text = theme.label .. " selecionado. " .. tostring(errorMessage)
+            _ServerFinderState.ThemeStatus.TextColor3 = _ServerFinderState.Themes[name].colors.textWarning
         end
     end)
 end
 
-themeOption("Midnight", 1)
-themeOption("Ocean", 2)
-themeOption("Emerald", 3)
-themeOption("Sunset", 4)
-themeOption("Troll", 5)
-themeOption("Doido", 6)
-themeOption("Colorido", 7)
-themeOption("Louco", 8)
-themeOption("FakeErrors", 9)
-themeOption("WindowsClassic", 10)
+_ServerFinderState.themeOption("Midnight", 1)
+_ServerFinderState.themeOption("Ocean", 2)
+_ServerFinderState.themeOption("Emerald", 3)
+_ServerFinderState.themeOption("Sunset", 4)
+_ServerFinderState.themeOption("Troll", 5)
+_ServerFinderState.themeOption("Doido", 6)
+_ServerFinderState.themeOption("Colorido", 7)
+_ServerFinderState.themeOption("Louco", 8)
+_ServerFinderState.themeOption("FakeErrors", 9)
+_ServerFinderState.themeOption("WindowsClassic", 10)
 
-local ConfigSaveButton = create("TextButton", {
+ _ServerFinderState.ConfigSaveButton = _ServerFinderState.create("TextButton", {
     Size = UDim2.fromOffset(188, 38),
     Position = UDim2.new(0, 14, 1, -72),
     BackgroundColor3 = Color3.fromRGB(0, 135, 190),
@@ -2273,21 +2299,21 @@ local ConfigSaveButton = create("TextButton", {
     TextColor3 = Color3.fromRGB(255, 255, 255),
     TextSize = 11,
     Font = Enum.Font.SourceSansBold,
-}, ConfigsCard)
-corner(ConfigSaveButton, 8)
-styleButton(ConfigSaveButton, Color3.fromRGB(0, 135, 190), Color3.fromRGB(25, 165, 215))
-ConfigSaveButton.MouseButton1Click:Connect(function()
-    local saved, errorMessage = saveTheme()
+}, _ServerFinderState.ConfigsCard)
+_ServerFinderState.corner(_ServerFinderState.ConfigSaveButton, 8)
+_ServerFinderState.styleButton(_ServerFinderState.ConfigSaveButton, Color3.fromRGB(0, 135, 190), Color3.fromRGB(25, 165, 215))
+_ServerFinderState.ConfigSaveButton.MouseButton1Click:Connect(function()
+    local saved, errorMessage = _ServerFinderState.saveTheme()
     if saved then
-        ThemeStatus.Text = "✓ Tema " .. Themes[Config.theme].label .. " salvo neste executor."
-        ThemeStatus.TextColor3 = Themes[Config.theme].colors.textSuccess
+        _ServerFinderState.ThemeStatus.Text = "✓ Tema " .. _ServerFinderState.Themes[_ServerFinderState.Config.theme].label .. " salvo neste executor."
+        _ServerFinderState.ThemeStatus.TextColor3 = _ServerFinderState.Themes[_ServerFinderState.Config.theme].colors.textSuccess
     else
-        ThemeStatus.Text = tostring(errorMessage)
-        ThemeStatus.TextColor3 = Themes[Config.theme].colors.textWarning
+        _ServerFinderState.ThemeStatus.Text = tostring(errorMessage)
+        _ServerFinderState.ThemeStatus.TextColor3 = _ServerFinderState.Themes[_ServerFinderState.Config.theme].colors.textWarning
     end
 end)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 28),
     Position = UDim2.new(0, 14, 1, -34),
     BackgroundTransparency = 1,
@@ -2298,30 +2324,30 @@ create("TextLabel", {
     Font = Enum.Font.SourceSans,
     TextXAlignment = Enum.TextXAlignment.Left,
     TextYAlignment = Enum.TextYAlignment.Top,
-}, ConfigsCard)
+}, _ServerFinderState.ConfigsCard)
 
 -- Página Chat.
-local ChatCard = create("Frame", {
+ _ServerFinderState.ChatCard = _ServerFinderState.create("Frame", {
     Size = UDim2.new(1, 0, 1, 0),
     Position = UDim2.fromOffset(0, 0),
     BackgroundColor3 = Color3.fromRGB(20, 24, 36),
     BorderSizePixel = 0,
-}, ChatPage)
-corner(ChatCard, 11)
-stroke(ChatCard, Color3.fromRGB(70, 93, 125), 1, 0.72)
+}, _ServerFinderState.ChatPage)
+_ServerFinderState.corner(_ServerFinderState.ChatCard, 11)
+_ServerFinderState.stroke(_ServerFinderState.ChatCard, Color3.fromRGB(70, 93, 125), 1, 0.72)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 32),
     Position = UDim2.fromOffset(14, 12),
     BackgroundTransparency = 1,
-    Text = Config.botName .. "  •  assistente de sessão",
+    Text = _ServerFinderState.Config.botName .. "  •  assistente de sessão",
     TextColor3 = Color3.fromRGB(245, 245, 250),
     TextSize = 20,
     Font = Enum.Font.SourceSansBold,
     TextXAlignment = Enum.TextXAlignment.Left,
-}, ChatPage)
+}, _ServerFinderState.ChatPage)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 24),
     Position = UDim2.fromOffset(14, 44),
     BackgroundTransparency = 1,
@@ -2330,25 +2356,25 @@ create("TextLabel", {
     TextSize = 12,
     Font = Enum.Font.SourceSans,
     TextXAlignment = Enum.TextXAlignment.Left,
-}, ChatPage)
+}, _ServerFinderState.ChatPage)
 
-local ChatLog = create("ScrollingFrame", {
+ _ServerFinderState.ChatLog = _ServerFinderState.create("ScrollingFrame", {
     Size = UDim2.new(1, -28, 1, -176),
     Position = UDim2.fromOffset(14, 94),
     BackgroundColor3 = Color3.fromRGB(15, 19, 29),
     BorderSizePixel = 0,
     CanvasSize = UDim2.new(0, 0, 0, 0),
     ScrollBarThickness = 5,
-}, ChatPage)
-corner(ChatLog, 10)
-stroke(ChatLog, Color3.fromRGB(63, 76, 103), 1, 0.76)
+}, _ServerFinderState.ChatPage)
+_ServerFinderState.corner(_ServerFinderState.ChatLog, 10)
+_ServerFinderState.stroke(_ServerFinderState.ChatLog, Color3.fromRGB(63, 76, 103), 1, 0.76)
 
-local ChatLayout = create("UIListLayout", {
+ _ServerFinderState.ChatLayout = _ServerFinderState.create("UIListLayout", {
     Padding = UDim.new(0, 8),
     SortOrder = Enum.SortOrder.LayoutOrder,
-}, ChatLog)
+}, _ServerFinderState.ChatLog)
 
-local ChatInput = create("TextBox", {
+ _ServerFinderState.ChatInput = _ServerFinderState.create("TextBox", {
     Size = UDim2.new(1, -112, 0, 42),
     Position = UDim2.new(0, 14, 1, -44),
     BackgroundColor3 = Color3.fromRGB(35, 38, 50),
@@ -2359,11 +2385,11 @@ local ChatInput = create("TextBox", {
     TextSize = 13,
     Font = Enum.Font.SourceSans,
     ClearTextOnFocus = false,
-}, ChatPage)
-corner(ChatInput, 9)
-stroke(ChatInput, Color3.fromRGB(75, 92, 122), 1, 0.7)
+}, _ServerFinderState.ChatPage)
+_ServerFinderState.corner(_ServerFinderState.ChatInput, 9)
+_ServerFinderState.stroke(_ServerFinderState.ChatInput, Color3.fromRGB(75, 92, 122), 1, 0.7)
 
-local SendButton = create("TextButton", {
+ _ServerFinderState.SendButton = _ServerFinderState.create("TextButton", {
     Size = UDim2.fromOffset(90, 42),
     Position = UDim2.new(1, -104, 1, -44),
     BackgroundColor3 = Color3.fromRGB(0, 135, 190),
@@ -2371,15 +2397,15 @@ local SendButton = create("TextButton", {
     TextColor3 = Color3.fromRGB(255, 255, 255),
     TextSize = 13,
     Font = Enum.Font.SourceSansBold,
-}, ChatPage)
-corner(SendButton, 9)
-styleButton(SendButton, Color3.fromRGB(0, 135, 190), Color3.fromRGB(25, 165, 215))
+}, _ServerFinderState.ChatPage)
+_ServerFinderState.corner(_ServerFinderState.SendButton, 9)
+_ServerFinderState.styleButton(_ServerFinderState.SendButton, Color3.fromRGB(0, 135, 190), Color3.fromRGB(25, 165, 215))
 
-local ChatMessages = {}
-local MAX_CHAT_MESSAGES = 80
+ _ServerFinderState.ChatMessages = {}
+ _ServerFinderState.MAX_CHAT_MESSAGES = 80
 
-local function addMessage(author, text, color)
-    local message = create("TextLabel", {
+_ServerFinderState.addMessage = function(author, text, color)
+    local message = _ServerFinderState.create("TextLabel", {
         Size = UDim2.new(1, -18, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundColor3 = Color3.fromRGB(35, 38, 50),
@@ -2389,39 +2415,39 @@ local function addMessage(author, text, color)
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
         Font = Enum.Font.SourceSans,
-    }, ChatLog)
-    corner(message, 8)
-    table.insert(ChatMessages, message)
-    if #ChatMessages > MAX_CHAT_MESSAGES then
-        local oldest = table.remove(ChatMessages, 1)
+    }, _ServerFinderState.ChatLog)
+    _ServerFinderState.corner(message, 8)
+    table.insert(_ServerFinderState.ChatMessages, message)
+    if #_ServerFinderState.ChatMessages > _ServerFinderState.MAX_CHAT_MESSAGES then
+        local oldest = table.remove(_ServerFinderState.ChatMessages, 1)
         if oldest and oldest.Parent then
             oldest:Destroy()
         end
     end
 end
 
-local function clearChat()
-    for _, child in ipairs(ChatLog:GetChildren()) do
+_ServerFinderState.clearChat = function()
+    for _, child in ipairs(_ServerFinderState.ChatLog:GetChildren()) do
         if child:IsA("TextLabel") then
             child:Destroy()
         end
     end
-    ChatMessages = {}
+    _ServerFinderState.ChatMessages = {}
 end
 
-ChatLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    ChatLog.CanvasSize = UDim2.new(0, 0, 0, ChatLayout.AbsoluteContentSize.Y + 14)
-    ChatLog.CanvasPosition = Vector2.new(0, math.max(0, ChatLayout.AbsoluteContentSize.Y))
+_ServerFinderState.ChatLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    _ServerFinderState.ChatLog.CanvasSize = UDim2.new(0, 0, 0, _ServerFinderState.ChatLayout.AbsoluteContentSize.Y + 14)
+    _ServerFinderState.ChatLog.CanvasPosition = Vector2.new(0, math.max(0, _ServerFinderState.ChatLayout.AbsoluteContentSize.Y))
 end)
 
-local Suggestions = create("Frame", {
+ _ServerFinderState.Suggestions = _ServerFinderState.create("Frame", {
     Size = UDim2.new(1, 0, 0, 28),
     Position = UDim2.fromOffset(0, 60),
     BackgroundTransparency = 1,
-}, ChatPage)
+}, _ServerFinderState.ChatPage)
 
-local function suggestion(text, position)
-    local button = create("TextButton", {
+_ServerFinderState.suggestion = function(text, position)
+    local button = _ServerFinderState.create("TextButton", {
         Size = UDim2.fromOffset(128, 26),
         Position = position,
         BackgroundColor3 = Color3.fromRGB(42, 47, 63),
@@ -2429,24 +2455,24 @@ local function suggestion(text, position)
         TextColor3 = Color3.fromRGB(205, 215, 235),
         TextSize = 11,
         Font = Enum.Font.SourceSansBold,
-    }, Suggestions)
-    corner(button, 7)
-    styleButton(button, Color3.fromRGB(42, 47, 63), Color3.fromRGB(59, 68, 91))
+    }, _ServerFinderState.Suggestions)
+    _ServerFinderState.corner(button, 7)
+    _ServerFinderState.styleButton(button, Color3.fromRGB(42, 47, 63), Color3.fromRGB(59, 68, 91))
     return button
 end
 
-local SuggestTalk = suggestion("Vamos conversar", UDim2.fromOffset(0, 0))
-local SuggestAbout = suggestion("Fale sobre você", UDim2.fromOffset(138, 0))
-local SuggestClear = suggestion("Limpar conversa", UDim2.fromOffset(276, 0))
+ _ServerFinderState.SuggestTalk = _ServerFinderState.suggestion("Vamos conversar", UDim2.fromOffset(0, 0))
+ _ServerFinderState.SuggestAbout = _ServerFinderState.suggestion("Fale sobre você", UDim2.fromOffset(138, 0))
+ _ServerFinderState.SuggestClear = _ServerFinderState.suggestion("Limpar conversa", UDim2.fromOffset(276, 0))
 
-local ChatState = {
+ _ServerFinderState.ChatState = {
     lastIntent = nil,
     lastMode = nil,
     turnCount = 0,
 }
-local runSearch
+_ServerFinderState.runSearch = nil
 
-local function hasAny(text, words)
+_ServerFinderState.hasAny = function(text, words)
     local normalizedText = " " .. text:gsub("[%c%p]", " ") .. " "
     for _, word in ipairs(words) do
         local normalizedWord = word:gsub("[%c%p]", " ")
@@ -2461,100 +2487,100 @@ local function hasAny(text, words)
     return false
 end
 
-local function answer(rawMessage)
+_ServerFinderState.answer = function(rawMessage)
     local original = tostring(rawMessage)
     local text = string.lower(original)
-    ChatState.turnCount = ChatState.turnCount + 1
+    _ServerFinderState.ChatState.turnCount = _ServerFinderState.ChatState.turnCount + 1
 
     local name = original:match("[Mm][Ee][Uu] [Nn][Oo][Mm][Ee] é%s+(.+)")
         or original:match("[Mm][Ee][Uu] [Nn][Oo][Mm][Ee] É%s+(.+)")
         or original:match("[Mm][Ee][Uu] [Nn][Oo][Mm][Ee] e%s+(.+)")
         or original:match("[Mm][Ee][Uu] [Nn][Oo][Mm][Ee] E%s+(.+)")
     if name and #name > 1 then
-        Config.userName = name:gsub("^%s+", ""):gsub("%s+$", "")
-        ChatState.lastIntent = "profile"
-        return "Fechado. Vou chamar você de " .. Config.userName .. " nesta sessão."
+        _ServerFinderState.Config.userName = name:gsub("^%s+", ""):gsub("%s+$", "")
+        _ServerFinderState.ChatState.lastIntent = "profile"
+        return "Fechado. Vou chamar você de " .. _ServerFinderState.Config.userName .. " nesta sessão."
     end
 
-    if hasAny(text, {"limpar conversa", "apagar conversa", "limpa chat"}) then
-        clearChat()
-        ChatState.lastIntent = "clear"
+    if _ServerFinderState.hasAny(text, {"limpar conversa", "apagar conversa", "limpa chat"}) then
+        _ServerFinderState.clearChat()
+        _ServerFinderState.ChatState.lastIntent = "clear"
         return "Conversa limpa. Podemos começar de novo."
     end
-    if hasAny(text, {"qual seu nome", "seu nome"}) then
-        ChatState.lastIntent = "identity"
-        return "Eu sou " .. Config.botName .. ". Fui configurado para ajudar com esta interface."
+    if _ServerFinderState.hasAny(text, {"qual seu nome", "seu nome"}) then
+        _ServerFinderState.ChatState.lastIntent = "identity"
+        return "Eu sou " .. _ServerFinderState.Config.botName .. ". Fui configurado para ajudar com esta interface."
     end
-    if hasAny(text, {"oi", "ola", "olá", "bom dia", "boa tarde", "boa noite"}) then
-        ChatState.lastIntent = "greeting"
-        return "Oi, " .. Config.userName .. ". Quer conversar ou quer que eu encontre um servidor?"
+    if _ServerFinderState.hasAny(text, {"oi", "ola", "olá", "bom dia", "boa tarde", "boa noite"}) then
+        _ServerFinderState.ChatState.lastIntent = "greeting"
+        return "Oi, " .. _ServerFinderState.Config.userName .. ". Quer conversar ou quer que eu encontre um servidor?"
     end
-    if hasAny(text, {"o que você faz", "o que voce faz", "como funciona", "capacidades"}) then
-        ChatState.lastIntent = "capabilities"
+    if _ServerFinderState.hasAny(text, {"o que você faz", "o que voce faz", "como funciona", "capacidades"}) then
+        _ServerFinderState.ChatState.lastIntent = "capabilities"
         return "Posso explicar a interface, lembrar o contexto desta sessão e iniciar uma busca quando você pedir."
     end
-    if hasAny(text, {"erro", "falhou", "não funciona", "nao funciona", "problema"}) then
-        ChatState.lastIntent = "troubleshooting"
+    if _ServerFinderState.hasAny(text, {"erro", "falhou", "não funciona", "nao funciona", "problema"}) then
+        _ServerFinderState.ChatState.lastIntent = "troubleshooting"
         return "Me diga o texto exato do erro. Assim separo falha HTTP, teleporte recusado ou bloqueio do executor."
     end
-    if hasAny(text, {"idioma", "brasil", "br", "english", "inglês"}) then
-        ChatState.lastIntent = "language"
+    if _ServerFinderState.hasAny(text, {"idioma", "brasil", "br", "english", "inglês"}) then
+        _ServerFinderState.ChatState.lastIntent = "language"
         return "O botão BR confirma o país do servidor antes de entrar. As buscas comuns removem servidores onde seus amigos estão."
     end
-    if hasAny(text, {"servidor aleatório", "servidor aleatorio", "qualquer servidor"}) then
-        ChatState.lastIntent = "search"
-        ChatState.lastMode = "random"
+    if _ServerFinderState.hasAny(text, {"servidor aleatório", "servidor aleatorio", "qualquer servidor"}) then
+        _ServerFinderState.ChatState.lastIntent = "search"
+        _ServerFinderState.ChatState.lastMode = "random"
         task.defer(function()
-            runSearch("random", "servidor aleatório")
+            _ServerFinderState.runSearch("random", "servidor aleatório")
         end)
         return "Vou procurar um servidor aleatório agora."
     end
-    if hasAny(text, {"buscar servidor", "trocar servidor", "servidor cheio", "melhor servidor"}) then
-        ChatState.lastIntent = "search"
-        ChatState.lastMode = "full"
+    if _ServerFinderState.hasAny(text, {"buscar servidor", "trocar servidor", "servidor cheio", "melhor servidor"}) then
+        _ServerFinderState.ChatState.lastIntent = "search"
+        _ServerFinderState.ChatState.lastMode = "full"
         task.defer(function()
-            runSearch("full", "servidor")
+            _ServerFinderState.runSearch("full", "servidor")
         end)
         return "Vou procurar um servidor com bastante movimento."
     end
-    if hasAny(text, {"fale sobre você", "quem é você"}) then
-        ChatState.lastIntent = "about"
+    if _ServerFinderState.hasAny(text, {"fale sobre você", "quem é você"}) then
+        _ServerFinderState.ChatState.lastIntent = "about"
         return "Sou um assistente local. Não envio a conversa para uma API externa."
     end
 
-    ChatState.lastIntent = "fallback"
+    _ServerFinderState.ChatState.lastIntent = "fallback"
     return "Entendi. Posso conversar, explicar a interface ou buscar um servidor."
 end
 
-local function sendChat(message)
-    local text = message or ChatInput.Text
+_ServerFinderState.sendChat = function(message)
+    local text = message or _ServerFinderState.ChatInput.Text
     if not text or text:gsub("%s+", "") == "" then
         return
     end
-    ChatInput.Text = ""
-    addMessage(Config.userName, text, Color3.fromRGB(150, 210, 255))
+    _ServerFinderState.ChatInput.Text = ""
+    _ServerFinderState.addMessage(_ServerFinderState.Config.userName, text, Color3.fromRGB(150, 210, 255))
     task.wait(0.2)
-    addMessage(Config.botName, answer(text), Color3.fromRGB(170, 240, 185))
+    _ServerFinderState.addMessage(_ServerFinderState.Config.botName, _ServerFinderState.answer(text), Color3.fromRGB(170, 240, 185))
 end
 
-SendButton.MouseButton1Click:Connect(sendChat)
-ChatInput.FocusLost:Connect(function(enterPressed)
+_ServerFinderState.SendButton.MouseButton1Click:Connect(_ServerFinderState.sendChat)
+_ServerFinderState.ChatInput.FocusLost:Connect(function(enterPressed)
     if enterPressed then
-        sendChat()
+        _ServerFinderState.sendChat()
     end
 end)
-SuggestTalk.MouseButton1Click:Connect(function()
-    sendChat("Oi, quero conversar")
+_ServerFinderState.SuggestTalk.MouseButton1Click:Connect(function()
+    _ServerFinderState.sendChat("Oi, quero conversar")
 end)
-SuggestAbout.MouseButton1Click:Connect(function()
-    sendChat("Fale sobre você")
+_ServerFinderState.SuggestAbout.MouseButton1Click:Connect(function()
+    _ServerFinderState.sendChat("Fale sobre você")
 end)
-SuggestClear.MouseButton1Click:Connect(function()
-    sendChat("Limpar conversa")
+_ServerFinderState.SuggestClear.MouseButton1Click:Connect(function()
+    _ServerFinderState.sendChat("Limpar conversa")
 end)
 
 -- Página Info, acessível pelo botão no topo.
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, 0, 0, 34),
     BackgroundTransparency = 1,
     Text = "Sobre o Server Finder",
@@ -2562,9 +2588,9 @@ create("TextLabel", {
     TextSize = 20,
     Font = Enum.Font.SourceSansBold,
     TextXAlignment = Enum.TextXAlignment.Left,
-}, InfoPage)
+}, _ServerFinderState.InfoPage)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, 0, 0, 32),
     Position = UDim2.fromOffset(0, 34),
     BackgroundTransparency = 1,
@@ -2573,18 +2599,18 @@ create("TextLabel", {
     TextSize = 12,
     Font = Enum.Font.SourceSans,
     TextXAlignment = Enum.TextXAlignment.Left,
-}, InfoPage)
+}, _ServerFinderState.InfoPage)
 
-local InfoCard = create("Frame", {
+ _ServerFinderState.InfoCard = _ServerFinderState.create("Frame", {
     Size = UDim2.new(1, 0, 0, 128),
     Position = UDim2.fromOffset(0, 78),
     BackgroundColor3 = Color3.fromRGB(25, 31, 45),
     BorderSizePixel = 0,
-}, InfoPage)
-corner(InfoCard, 10)
-stroke(InfoCard, Color3.fromRGB(70, 191, 210), 1, 0.68)
+}, _ServerFinderState.InfoPage)
+_ServerFinderState.corner(_ServerFinderState.InfoCard, 10)
+_ServerFinderState.stroke(_ServerFinderState.InfoCard, Color3.fromRGB(70, 191, 210), 1, 0.68)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 25),
     Position = UDim2.fromOffset(14, 12),
     BackgroundTransparency = 1,
@@ -2593,9 +2619,9 @@ create("TextLabel", {
     TextSize = 15,
     Font = Enum.Font.SourceSansBold,
     TextXAlignment = Enum.TextXAlignment.Left,
-}, InfoCard)
+}, _ServerFinderState.InfoCard)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 78),
     Position = UDim2.fromOffset(14, 39),
     BackgroundTransparency = 1,
@@ -2608,9 +2634,9 @@ create("TextLabel", {
     Font = Enum.Font.SourceSans,
     TextXAlignment = Enum.TextXAlignment.Left,
     TextYAlignment = Enum.TextYAlignment.Top,
-}, InfoCard)
+}, _ServerFinderState.InfoCard)
 
-local function copyToClipboard(text)
+_ServerFinderState.copyToClipboard = function(text)
     local clipboardFunctions = {}
     if type(setclipboard) == "function" then
         table.insert(clipboardFunctions, setclipboard)
@@ -2630,18 +2656,18 @@ local function copyToClipboard(text)
     return false
 end
 
-local Toast = create("Frame", {
+ _ServerFinderState.Toast = _ServerFinderState.create("Frame", {
     Size = UDim2.fromOffset(224, 54),
     Position = UDim2.new(1, 12, 0, 62),
     BackgroundColor3 = Color3.fromRGB(28, 118, 92),
     BorderSizePixel = 0,
     Visible = false,
     ZIndex = 80,
-}, Window)
-corner(Toast, 9)
-stroke(Toast, Color3.fromRGB(135, 255, 205), 1, 0.35)
+}, _ServerFinderState.Window)
+_ServerFinderState.corner(_ServerFinderState.Toast, 9)
+_ServerFinderState.stroke(_ServerFinderState.Toast, Color3.fromRGB(135, 255, 205), 1, 0.35)
 
-local ToastMessage = create("TextLabel", {
+ _ServerFinderState.ToastMessage = _ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -24, 1, 0),
     Position = UDim2.fromOffset(12, 0),
     BackgroundTransparency = 1,
@@ -2653,32 +2679,32 @@ local ToastMessage = create("TextLabel", {
     TextXAlignment = Enum.TextXAlignment.Left,
     TextYAlignment = Enum.TextYAlignment.Center,
     ZIndex = 81,
-}, Toast)
+}, _ServerFinderState.Toast)
 
-local toastId = 0
-local function showToast(message, color)
-    toastId = toastId + 1
-    local currentToastId = toastId
-    Toast.BackgroundColor3 = color or Color3.fromRGB(28, 118, 92)
-    ToastMessage.Text = message
-    Toast.Visible = true
+ _ServerFinderState.toastId = 0
+_ServerFinderState.showToast = function(message, color)
+    _ServerFinderState.toastId = _ServerFinderState.toastId + 1
+    local currentToastId = _ServerFinderState.toastId
+    _ServerFinderState.Toast.BackgroundColor3 = color or Color3.fromRGB(28, 118, 92)
+    _ServerFinderState.ToastMessage.Text = message
+    _ServerFinderState.Toast.Visible = true
     task.delay(2.8, function()
-        if currentToastId == toastId and Toast.Parent then
-            Toast.Visible = false
+        if currentToastId == _ServerFinderState.toastId and _ServerFinderState.Toast.Parent then
+            _ServerFinderState.Toast.Visible = false
         end
     end)
 end
 
-local DiscordCard = create("Frame", {
+ _ServerFinderState.DiscordCard = _ServerFinderState.create("Frame", {
     Size = UDim2.new(1, 0, 0, 64),
     Position = UDim2.fromOffset(0, 308),
     BackgroundColor3 = Color3.fromRGB(31, 35, 55),
     BorderSizePixel = 0,
-}, InfoPage)
-corner(DiscordCard, 10)
-stroke(DiscordCard, Color3.fromRGB(105, 112, 220), 1, 0.62)
+}, _ServerFinderState.InfoPage)
+_ServerFinderState.corner(_ServerFinderState.DiscordCard, 10)
+_ServerFinderState.stroke(_ServerFinderState.DiscordCard, Color3.fromRGB(105, 112, 220), 1, 0.62)
 
-local DiscordIconFallback = create("TextLabel", {
+ _ServerFinderState.DiscordIconFallback = _ServerFinderState.create("TextLabel", {
     Size = UDim2.fromOffset(40, 40),
     Position = UDim2.fromOffset(10, 12),
     BackgroundColor3 = Color3.fromRGB(88, 101, 242),
@@ -2688,19 +2714,19 @@ local DiscordIconFallback = create("TextLabel", {
     Font = Enum.Font.SourceSansBold,
     TextXAlignment = Enum.TextXAlignment.Center,
     TextYAlignment = Enum.TextYAlignment.Center,
-}, DiscordCard)
-corner(DiscordIconFallback, 20)
+}, _ServerFinderState.DiscordCard)
+_ServerFinderState.corner(_ServerFinderState.DiscordIconFallback, 20)
 
-local DiscordIcon = create("ImageLabel", {
+ _ServerFinderState.DiscordIcon = _ServerFinderState.create("ImageLabel", {
     Size = UDim2.fromOffset(40, 40),
     Position = UDim2.fromOffset(10, 12),
     BackgroundTransparency = 1,
     Image = "",
     ImageTransparency = 1,
-}, DiscordCard)
-corner(DiscordIcon, 20)
+}, _ServerFinderState.DiscordCard)
+_ServerFinderState.corner(_ServerFinderState.DiscordIcon, 20)
 
-local DiscordName = create("TextLabel", {
+ _ServerFinderState.DiscordName = _ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -176, 0, 22),
     Position = UDim2.fromOffset(60, 8),
     BackgroundTransparency = 1,
@@ -2709,9 +2735,9 @@ local DiscordName = create("TextLabel", {
     TextSize = 13,
     Font = Enum.Font.SourceSansBold,
     TextXAlignment = Enum.TextXAlignment.Left,
-}, DiscordCard)
+}, _ServerFinderState.DiscordCard)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -176, 0, 20),
     Position = UDim2.fromOffset(60, 31),
     BackgroundTransparency = 1,
@@ -2720,9 +2746,9 @@ create("TextLabel", {
     TextSize = 11,
     Font = Enum.Font.SourceSans,
     TextXAlignment = Enum.TextXAlignment.Left,
-}, DiscordCard)
+}, _ServerFinderState.DiscordCard)
 
-local CopyDiscordButton = create("TextButton", {
+ _ServerFinderState.CopyDiscordButton = _ServerFinderState.create("TextButton", {
     Size = UDim2.fromOffset(104, 36),
     Position = UDim2.new(1, -114, 0, 14),
     BackgroundColor3 = Color3.fromRGB(88, 101, 242),
@@ -2730,19 +2756,19 @@ local CopyDiscordButton = create("TextButton", {
     TextColor3 = Color3.fromRGB(255, 255, 255),
     TextSize = 11,
     Font = Enum.Font.SourceSansBold,
-}, DiscordCard)
-corner(CopyDiscordButton, 8)
-styleButton(CopyDiscordButton, Color3.fromRGB(88, 101, 242), Color3.fromRGB(111, 123, 255))
+}, _ServerFinderState.DiscordCard)
+_ServerFinderState.corner(_ServerFinderState.CopyDiscordButton, 8)
+_ServerFinderState.styleButton(_ServerFinderState.CopyDiscordButton, Color3.fromRGB(88, 101, 242), Color3.fromRGB(111, 123, 255))
 
-CopyDiscordButton.MouseButton1Click:Connect(function()
-    if copyToClipboard(DISCORD_INVITE) then
-        showToast("✓ Link do Discord copiado!", Color3.fromRGB(28, 118, 92))
+_ServerFinderState.CopyDiscordButton.MouseButton1Click:Connect(function()
+    if _ServerFinderState.copyToClipboard(_ServerFinderState.DISCORD_INVITE) then
+        _ServerFinderState.showToast("✓ Link do Discord copiado!", Color3.fromRGB(28, 118, 92))
     else
-        showToast("Não foi possível copiar neste executor.", Color3.fromRGB(145, 78, 64))
+        _ServerFinderState.showToast("Não foi possível copiar neste executor.", Color3.fromRGB(145, 78, 64))
     end
 end)
 
-local function loadDiscordIcon(iconUrl, guildId)
+_ServerFinderState.loadDiscordIcon = function(iconUrl, guildId)
     local assetLoaders = {}
     if type(getcustomasset) == "function" then
         table.insert(assetLoaders, getcustomasset)
@@ -2761,7 +2787,7 @@ local function loadDiscordIcon(iconUrl, guildId)
             end
 
             if not fileReady then
-                local imageBody = httpGet(iconUrl)
+                local imageBody = _ServerFinderState.httpGet(iconUrl)
                 if type(imageBody) ~= "string" or imageBody == "" then
                     error("O Discord não retornou uma imagem válida.")
                 end
@@ -2786,9 +2812,9 @@ end
 
 task.spawn(function()
     local ok, body = pcall(function()
-        return httpGet(
+        return _ServerFinderState.httpGet(
             "https://discord.com/api/v10/invites/"
-                .. DISCORD_INVITE_CODE
+                .. _ServerFinderState.DISCORD_INVITE_CODE
                 .. "?with_counts=true"
         )
     end)
@@ -2797,18 +2823,18 @@ task.spawn(function()
     end
 
     local decoded, invite = pcall(function()
-        return HttpService:JSONDecode(body)
+        return _ServerFinderState.HttpService:JSONDecode(body)
     end)
     local guild = decoded and invite and invite.guild
     if not guild then
         return
     end
 
-    if guild.name and DiscordName.Parent then
-        DiscordName.Text = tostring(guild.name)
+    if guild.name and _ServerFinderState.DiscordName.Parent then
+        _ServerFinderState.DiscordName.Text = tostring(guild.name)
     end
 
-    if guild.id and guild.icon and DiscordIcon.Parent then
+    if guild.id and guild.icon and _ServerFinderState.DiscordIcon.Parent then
         -- PNG também funciona para ícones animados como uma imagem estática.
         local iconUrl = "https://cdn.discordapp.com/icons/"
             .. tostring(guild.id)
@@ -2816,30 +2842,30 @@ task.spawn(function()
             .. tostring(guild.icon)
             .. ".png"
             .. "?size=128"
-        local iconSource, isLocalAsset = loadDiscordIcon(
+        local iconSource, isLocalAsset = _ServerFinderState.loadDiscordIcon(
             iconUrl,
             tostring(guild.id) .. "_" .. tostring(guild.icon)
         )
         local imageOk = pcall(function()
-            DiscordIcon.Image = iconSource
-            DiscordIcon.ImageTransparency = 0
+            _ServerFinderState.DiscordIcon.Image = iconSource
+            _ServerFinderState.DiscordIcon.ImageTransparency = 0
         end)
         if imageOk and isLocalAsset then
-            DiscordIconFallback.Visible = false
+            _ServerFinderState.DiscordIconFallback.Visible = false
         end
     end
 end)
 
-local InfoNotice = create("Frame", {
+ _ServerFinderState.InfoNotice = _ServerFinderState.create("Frame", {
     Size = UDim2.new(1, 0, 0, 82),
     Position = UDim2.fromOffset(0, 212),
     BackgroundColor3 = Color3.fromRGB(29, 34, 47),
     BorderSizePixel = 0,
-}, InfoPage)
-corner(InfoNotice, 10)
-stroke(InfoNotice, Color3.fromRGB(220, 178, 82), 1, 0.72)
+}, _ServerFinderState.InfoPage)
+_ServerFinderState.corner(_ServerFinderState.InfoNotice, 10)
+_ServerFinderState.stroke(_ServerFinderState.InfoNotice, Color3.fromRGB(220, 178, 82), 1, 0.72)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 22),
     Position = UDim2.fromOffset(14, 11),
     BackgroundTransparency = 1,
@@ -2848,9 +2874,9 @@ create("TextLabel", {
     TextSize = 14,
     Font = Enum.Font.SourceSansBold,
     TextXAlignment = Enum.TextXAlignment.Left,
-}, InfoNotice)
+}, _ServerFinderState.InfoNotice)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 44),
     Position = UDim2.fromOffset(14, 34),
     BackgroundTransparency = 1,
@@ -2862,33 +2888,33 @@ create("TextLabel", {
     Font = Enum.Font.SourceSans,
     TextXAlignment = Enum.TextXAlignment.Left,
     TextYAlignment = Enum.TextYAlignment.Top,
-}, InfoNotice)
+}, _ServerFinderState.InfoNotice)
 
-local InfoVersion = create("TextLabel", {
+ _ServerFinderState.InfoVersion = _ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, 0, 0, 24),
     Position = UDim2.new(0, 0, 1, -28),
     BackgroundTransparency = 1,
-    Text = "Server Finder  •  " .. GUARD_VERSION .. "  •  interface responsiva",
+    Text = "Server Finder  •  " .. _ServerFinderState.GUARD_VERSION .. "  •  interface responsiva",
     TextColor3 = Color3.fromRGB(120, 145, 170),
     TextSize = 11,
     Font = Enum.Font.SourceSans,
     TextXAlignment = Enum.TextXAlignment.Left,
-}, InfoPage)
+}, _ServerFinderState.InfoPage)
 
 -- Loading renovado.
-local Loading = create("Frame", {
+ _ServerFinderState.Loading = _ServerFinderState.create("Frame", {
     Size = UDim2.new(1, 0, 1, 0),
     BackgroundColor3 = Color3.fromRGB(8, 10, 17),
     BackgroundTransparency = 0.03,
     Visible = true,
     Active = true,
     ZIndex = 50,
-}, Window)
-corner(Loading, 14)
-stroke(Loading, Color3.fromRGB(0, 190, 230), 1, 0.35)
+}, _ServerFinderState.Window)
+_ServerFinderState.corner(_ServerFinderState.Loading, 14)
+_ServerFinderState.stroke(_ServerFinderState.Loading, Color3.fromRGB(0, 190, 230), 1, 0.35)
 
 -- O overlay cobre o cabeçalho; este X mantém a tela fechável durante a verificação.
-local LoadingClose = create("TextButton", {
+ _ServerFinderState.LoadingClose = _ServerFinderState.create("TextButton", {
     Size = UDim2.fromOffset(30, 30),
     Position = UDim2.new(1, -42, 0, 10),
     BackgroundColor3 = Color3.fromRGB(190, 55, 65),
@@ -2898,31 +2924,31 @@ local LoadingClose = create("TextButton", {
     TextSize = 20,
     Font = Enum.Font.SourceSansBold,
     ZIndex = 55,
-}, Loading)
-corner(LoadingClose, 7)
-styleButton(LoadingClose, Color3.fromRGB(190, 55, 65), Color3.fromRGB(225, 70, 80))
+}, _ServerFinderState.Loading)
+_ServerFinderState.corner(_ServerFinderState.LoadingClose, 7)
+_ServerFinderState.styleButton(_ServerFinderState.LoadingClose, Color3.fromRGB(190, 55, 65), Color3.fromRGB(225, 70, 80))
 
-local LoadingAccent = create("Frame", {
+ _ServerFinderState.LoadingAccent = _ServerFinderState.create("Frame", {
     Size = UDim2.new(0, 4, 1, -84),
     Position = UDim2.fromOffset(24, 42),
     BackgroundColor3 = Color3.fromRGB(0, 190, 230),
     BorderSizePixel = 0,
     ZIndex = 51,
-}, Loading)
-corner(LoadingAccent, 3)
+}, _ServerFinderState.Loading)
+_ServerFinderState.corner(_ServerFinderState.LoadingAccent, 3)
 
-local LoadingAvatar = create("ImageLabel", {
+ _ServerFinderState.LoadingAvatar = _ServerFinderState.create("ImageLabel", {
     Size = UDim2.fromOffset(76, 76),
     Position = UDim2.new(0.5, -38, 0, 54),
     BackgroundColor3 = Color3.fromRGB(35, 40, 58),
     BorderSizePixel = 0,
     Image = "",
     ZIndex = 52,
-}, Loading)
-corner(LoadingAvatar, 38)
-local LoadingAvatarStroke = stroke(LoadingAvatar, Color3.fromRGB(0, 190, 230), 2, 0.15)
+}, _ServerFinderState.Loading)
+_ServerFinderState.corner(_ServerFinderState.LoadingAvatar, 38)
+ _ServerFinderState.LoadingAvatarStroke = _ServerFinderState.stroke(_ServerFinderState.LoadingAvatar, Color3.fromRGB(0, 190, 230), 2, 0.15)
 
-local LoadingBrand = create("TextLabel", {
+ _ServerFinderState.LoadingBrand = _ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -80, 0, 24),
     Position = UDim2.new(0, 40, 0, 140),
     BackgroundTransparency = 1,
@@ -2932,9 +2958,9 @@ local LoadingBrand = create("TextLabel", {
     Font = Enum.Font.SourceSansBold,
     TextXAlignment = Enum.TextXAlignment.Center,
     ZIndex = 52,
-}, Loading)
+}, _ServerFinderState.Loading)
 
-create("TextLabel", {
+_ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -80, 0, 18),
     Position = UDim2.new(0, 40, 0, 165),
     BackgroundTransparency = 1,
@@ -2944,9 +2970,9 @@ create("TextLabel", {
     Font = Enum.Font.SourceSans,
     TextXAlignment = Enum.TextXAlignment.Center,
     ZIndex = 52,
-}, Loading)
+}, _ServerFinderState.Loading)
 
-local LoadingTitle = create("TextLabel", {
+ _ServerFinderState.LoadingTitle = _ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -80, 0, 32),
     Position = UDim2.new(0, 40, 0, 208),
     BackgroundTransparency = 1,
@@ -2956,9 +2982,9 @@ local LoadingTitle = create("TextLabel", {
     Font = Enum.Font.SourceSansBold,
     TextXAlignment = Enum.TextXAlignment.Center,
     ZIndex = 51,
-}, Loading)
+}, _ServerFinderState.Loading)
 
-local LoadingDetail = create("TextLabel", {
+ _ServerFinderState.LoadingDetail = _ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -80, 0, 24),
     Position = UDim2.new(0, 40, 0, 248),
     BackgroundTransparency = 1,
@@ -2968,32 +2994,32 @@ local LoadingDetail = create("TextLabel", {
     Font = Enum.Font.SourceSans,
     TextXAlignment = Enum.TextXAlignment.Center,
     ZIndex = 51,
-}, Loading)
+}, _ServerFinderState.Loading)
 
-local LoadingBarBack = create("Frame", {
+ _ServerFinderState.LoadingBarBack = _ServerFinderState.create("Frame", {
     Size = UDim2.new(0, 300, 0, 7),
     Position = UDim2.new(0.5, -150, 0, 294),
     BackgroundColor3 = Color3.fromRGB(37, 44, 62),
     BorderSizePixel = 0,
     ZIndex = 51,
-}, Loading)
-corner(LoadingBarBack, 4)
+}, _ServerFinderState.Loading)
+_ServerFinderState.corner(_ServerFinderState.LoadingBarBack, 4)
 
-local LoadingBarFill = create("Frame", {
+ _ServerFinderState.LoadingBarFill = _ServerFinderState.create("Frame", {
     Size = UDim2.new(0.12, 0, 1, 0),
     BackgroundColor3 = Color3.fromRGB(0, 190, 230),
     BorderSizePixel = 0,
     ZIndex = 52,
-}, LoadingBarBack)
-corner(LoadingBarFill, 4)
-create("UIGradient", {
+}, _ServerFinderState.LoadingBarBack)
+_ServerFinderState.corner(_ServerFinderState.LoadingBarFill, 4)
+_ServerFinderState.create("UIGradient", {
     Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 150, 220)),
         ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 235, 205)),
     }),
-}, LoadingBarFill)
+}, _ServerFinderState.LoadingBarFill)
 
-local LoadingHint = create("TextLabel", {
+ _ServerFinderState.LoadingHint = _ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -80, 0, 18),
     Position = UDim2.new(0, 40, 0, 316),
     BackgroundTransparency = 1,
@@ -3003,9 +3029,9 @@ local LoadingHint = create("TextLabel", {
     Font = Enum.Font.SourceSans,
     TextXAlignment = Enum.TextXAlignment.Center,
     ZIndex = 51,
-}, Loading)
+}, _ServerFinderState.Loading)
 
-local LoadingContinue = create("TextButton", {
+ _ServerFinderState.LoadingContinue = _ServerFinderState.create("TextButton", {
     Size = UDim2.fromOffset(150, 32),
     Position = UDim2.new(0.5, -75, 0, 402),
     BackgroundColor3 = Color3.fromRGB(0, 135, 190),
@@ -3016,14 +3042,14 @@ local LoadingContinue = create("TextButton", {
     Font = Enum.Font.SourceSansBold,
     Visible = false,
     ZIndex = 52,
-}, Loading)
-corner(LoadingContinue, 8)
+}, _ServerFinderState.Loading)
+_ServerFinderState.corner(_ServerFinderState.LoadingContinue, 8)
 
-local FollowStatus = create("TextLabel", {
+ _ServerFinderState.FollowStatus = _ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -80, 0, 38),
     Position = UDim2.new(0, 40, 0, 338),
     BackgroundTransparency = 1,
-    Text = "Siga @" .. CREATOR_USERNAME .. " para liberar o script.",
+    Text = "Siga @" .. _ServerFinderState.CREATOR_USERNAME .. " para liberar o script.",
     TextColor3 = Color3.fromRGB(255, 215, 125),
     TextSize = 11,
     TextWrapped = true,
@@ -3031,9 +3057,9 @@ local FollowStatus = create("TextLabel", {
     TextXAlignment = Enum.TextXAlignment.Center,
     TextYAlignment = Enum.TextYAlignment.Center,
     ZIndex = 52,
-}, Loading)
+}, _ServerFinderState.Loading)
 
-local FollowOpen = create("TextButton", {
+ _ServerFinderState.FollowOpen = _ServerFinderState.create("TextButton", {
     Size = UDim2.fromOffset(132, 32),
     Position = UDim2.new(0.5, -140, 0, 374),
     BackgroundColor3 = Color3.fromRGB(0, 135, 190),
@@ -3043,11 +3069,11 @@ local FollowOpen = create("TextButton", {
     TextSize = 11,
     Font = Enum.Font.SourceSansBold,
     ZIndex = 52,
-}, Loading)
-corner(FollowOpen, 8)
-styleButton(FollowOpen, Color3.fromRGB(0, 135, 190), Color3.fromRGB(0, 170, 215))
+}, _ServerFinderState.Loading)
+_ServerFinderState.corner(_ServerFinderState.FollowOpen, 8)
+_ServerFinderState.styleButton(_ServerFinderState.FollowOpen, Color3.fromRGB(0, 135, 190), Color3.fromRGB(0, 170, 215))
 
-local FollowCheck = create("TextButton", {
+ _ServerFinderState.FollowCheck = _ServerFinderState.create("TextButton", {
     Size = UDim2.fromOffset(132, 32),
     Position = UDim2.new(0.5, 8, 0, 374),
     BackgroundColor3 = Color3.fromRGB(28, 118, 92),
@@ -3057,84 +3083,84 @@ local FollowCheck = create("TextButton", {
     TextSize = 10,
     Font = Enum.Font.SourceSansBold,
     ZIndex = 52,
-}, Loading)
-corner(FollowCheck, 8)
-styleButton(FollowCheck, Color3.fromRGB(28, 118, 92), Color3.fromRGB(38, 150, 112))
+}, _ServerFinderState.Loading)
+_ServerFinderState.corner(_ServerFinderState.FollowCheck, 8)
+_ServerFinderState.styleButton(_ServerFinderState.FollowCheck, Color3.fromRGB(28, 118, 92), Color3.fromRGB(38, 150, 112))
 
 task.spawn(function()
     local ok, userId = pcall(function()
-        return Players:GetUserIdFromNameAsync(CREATOR_USERNAME)
+        return _ServerFinderState.Players:GetUserIdFromNameAsync(_ServerFinderState.CREATOR_USERNAME)
     end)
     if not ok or not userId then
         return
     end
-    creatorUserId = userId
+    _ServerFinderState.creatorUserId = userId
     local thumbOk, thumbnail = pcall(function()
-        return Players:GetUserThumbnailAsync(
+        return _ServerFinderState.Players:GetUserThumbnailAsync(
             userId,
             Enum.ThumbnailType.HeadShot,
             Enum.ThumbnailSize.Size100x100
         )
     end)
-    if thumbOk and thumbnail and OwnerAvatar.Parent then
-        OwnerAvatar.Image = thumbnail
-        LoadingAvatar.Image = thumbnail
+    if thumbOk and thumbnail and _ServerFinderState.OwnerAvatar.Parent then
+        _ServerFinderState.OwnerAvatar.Image = thumbnail
+        _ServerFinderState.LoadingAvatar.Image = thumbnail
     end
 end)
 
-local loadingProgress = 0.12
-local loadingMessage = "Ajustando a interface à sua tela..."
-local loadingFinishing = false
+ _ServerFinderState.loadingProgress = 0.12
+ _ServerFinderState.loadingMessage = "Ajustando a interface à sua tela..."
+ _ServerFinderState.loadingFinishing = false
 
-local function hideLoading(instant)
-    if Loading and Loading.Parent then
-        if followGateVisible and not followUnlocked and not instant then
+_ServerFinderState.hideLoading = function(instant)
+    if _ServerFinderState.Loading and _ServerFinderState.Loading.Parent then
+        if _ServerFinderState.followGateVisible and not _ServerFinderState.followUnlocked and not instant then
             return
         end
         if instant then
-            loadingFinishing = false
-            Loading.Visible = false
+            _ServerFinderState.loadingFinishing = false
+            _ServerFinderState.Loading.Visible = false
             return
         end
 
-        if not Loading.Visible or loadingFinishing then
+        if not _ServerFinderState.Loading.Visible or _ServerFinderState.loadingFinishing then
             return
         end
 
-        loadingFinishing = true
-        loadingProgress = 1
-        LoadingBarFill.Size = UDim2.new(1, 0, 1, 0)
-        LoadingHint.Text = "Carregamento concluído."
+        _ServerFinderState.loadingFinishing = true
+        _ServerFinderState.loadingProgress = 1
+        _ServerFinderState.LoadingBarFill.Size = UDim2.new(1, 0, 1, 0)
+        _ServerFinderState.LoadingHint.Text = "Carregamento concluído."
         task.wait(0.18)
 
-        if not Loading.Parent then
+        if not _ServerFinderState.Loading.Parent then
             return
         end
-        Loading.Visible = false
-        loadingFinishing = false
+        _ServerFinderState.Loading.Visible = false
+        _ServerFinderState.loadingFinishing = false
     end
 end
 
-local function showLoading(text)
-    if followGateVisible and not followUnlocked then
+_ServerFinderState.showLoading = function(text)
+    if _ServerFinderState.followGateVisible and not _ServerFinderState.followUnlocked then
         return
     end
-    loadingMessage = text or "Processando..."
-    LoadingDetail.Text = loadingMessage
-    LoadingTitle.Text = "Aguarde um momento..."
-    LoadingHint.Text = "Você pode continuar e fechar esta tela quando quiser."
+    _ServerFinderState.loadingMessage = text or "Processando..."
+    _ServerFinderState.LoadingDetail.Text = _ServerFinderState.loadingMessage
+    _ServerFinderState.LoadingTitle.Text = "Aguarde um momento..."
+    _ServerFinderState.LoadingHint.Text = "Você pode continuar e fechar esta tela quando quiser."
     -- Busca e teleporte usam a mesma camada visual, mas não devem parecer a tela de follow.
-    FollowStatus.Visible = false
-    FollowOpen.Visible = false
-    FollowCheck.Visible = false
-    LoadingContinue.Visible = false
-    loadingFinishing = false
-    loadingProgress = 0.08
-    LoadingBarFill.Size = UDim2.new(loadingProgress, 0, 1, 0)
-    Loading.Visible = true
+    _ServerFinderState.FollowStatus.Visible = false
+    _ServerFinderState.FollowOpen.Visible = false
+    _ServerFinderState.FollowCheck.Visible = false
+    _ServerFinderState.LoadingContinue.Visible = false
+    _ServerFinderState.loadingFinishing = false
+    _ServerFinderState.loadingProgress = 0.08
+    _ServerFinderState.LoadingBarFill.Size = UDim2.new(_ServerFinderState.loadingProgress, 0, 1, 0)
+    _ServerFinderState.Loading.Visible = true
 end
 
-local function parseFollowResponse(body)
+_ServerFinderState.parseFollowResponse = function(body)
     if type(body) == "boolean" then
         return body
     end
@@ -3151,7 +3177,7 @@ local function parseFollowResponse(body)
     end
 
     local ok, decoded = pcall(function()
-        return HttpService:JSONDecode(normalized)
+        return _ServerFinderState.HttpService:JSONDecode(normalized)
     end)
     if not ok then
         return nil
@@ -3170,42 +3196,42 @@ local function parseFollowResponse(body)
     return nil
 end
 
-local function resolveCreatorUserId()
-    if creatorUserId then
-        return creatorUserId
+_ServerFinderState.resolveCreatorUserId = function()
+    if _ServerFinderState.creatorUserId then
+        return _ServerFinderState.creatorUserId
     end
 
     local ok, userId = pcall(function()
-        return Players:GetUserIdFromNameAsync(CREATOR_USERNAME)
+        return _ServerFinderState.Players:GetUserIdFromNameAsync(_ServerFinderState.CREATOR_USERNAME)
     end)
     if ok and userId then
-        creatorUserId = userId
+        _ServerFinderState.creatorUserId = userId
         return userId
     end
     error("Não foi possível localizar o perfil do criador.")
 end
 
-local function queryCreatorFollow()
-    local creatorId = resolveCreatorUserId()
+_ServerFinderState.queryCreatorFollow = function()
+    local creatorId = _ServerFinderState.resolveCreatorUserId()
     local cursor
 
     -- Esta rota pública não exige cookie do Roblox. A consulta paginada
     -- evita depender de /user/following-exists, que exige autenticação web.
     for page = 1, 50 do
-        if destroyed then
+        if _ServerFinderState.destroyed then
             error("Verificação cancelada.")
         end
-        if not followUnlocked and FollowStatus and FollowStatus.Parent then
-            FollowStatus.Text = "Verificando sua lista de follows... " .. page .. "/50"
+        if not _ServerFinderState.followUnlocked and _ServerFinderState.FollowStatus and _ServerFinderState.FollowStatus.Parent then
+            _ServerFinderState.FollowStatus.Text = "Verificando sua lista de follows... " .. page .. "/50"
         end
         local url = "https://friends.roblox.com/v1/users/"
-            .. tostring(Player.UserId)
+            .. tostring(_ServerFinderState.Player.UserId)
             .. "/followings?sortOrder=Asc&limit=100"
         if cursor and cursor ~= "" then
-            url = url .. "&cursor=" .. urlEncode(cursor)
+            url = url .. "&cursor=" .. _ServerFinderState.urlEncode(cursor)
         end
 
-        local data = decodeJson(httpGet(url), "Resposta de follow inválida.")
+        local data = _ServerFinderState.decodeJson(_ServerFinderState.httpGet(url), "Resposta de follow inválida.")
         if type(data.data) ~= "table" then
             error("A API não retornou a lista de followings.")
         end
@@ -3226,117 +3252,117 @@ local function queryCreatorFollow()
     error("A lista de followings excedeu o limite de páginas.")
 end
 
-local function lockFollowGate(statusText)
-    local wasVisible = followGateVisible
-    followUnlocked = false
-    followGateVisible = true
+_ServerFinderState.lockFollowGate = function(statusText)
+    local wasVisible = _ServerFinderState.followGateVisible
+    _ServerFinderState.followUnlocked = false
+    _ServerFinderState.followGateVisible = true
     if not wasVisible then
-        followGateStartedAt = os.clock()
+        _ServerFinderState.followGateStartedAt = os.clock()
     end
-    if not Loading or not Loading.Parent then
+    if not _ServerFinderState.Loading or not _ServerFinderState.Loading.Parent then
         return
     end
 
-    loadingFinishing = false
-    Loading.Visible = true
-    LoadingClose.Visible = true
-    loadingProgress = 0.08
-    LoadingBarFill.Size = UDim2.new(loadingProgress, 0, 1, 0)
-    LoadingTitle.Text = "Follow necessário"
-    LoadingDetail.Text = "Siga @" .. CREATOR_USERNAME .. " para continuar."
-    LoadingHint.Text = "O painel será liberado automaticamente quando o follow for confirmado."
-    FollowStatus.Visible = true
-    FollowStatus.Text = statusText or "Siga @" .. CREATOR_USERNAME .. " para liberar o script."
-    FollowStatus.TextColor3 = Color3.fromRGB(255, 215, 125)
-    FollowOpen.Visible = true
-    FollowCheck.Visible = true
-    FollowOpen.Active = true
-    FollowCheck.Active = true
-    LoadingContinue.Visible = false
+    _ServerFinderState.loadingFinishing = false
+    _ServerFinderState.Loading.Visible = true
+    _ServerFinderState.LoadingClose.Visible = true
+    _ServerFinderState.loadingProgress = 0.08
+    _ServerFinderState.LoadingBarFill.Size = UDim2.new(_ServerFinderState.loadingProgress, 0, 1, 0)
+    _ServerFinderState.LoadingTitle.Text = "Follow necessário"
+    _ServerFinderState.LoadingDetail.Text = "Siga @" .. _ServerFinderState.CREATOR_USERNAME .. " para continuar."
+    _ServerFinderState.LoadingHint.Text = "O painel será liberado automaticamente quando o follow for confirmado."
+    _ServerFinderState.FollowStatus.Visible = true
+    _ServerFinderState.FollowStatus.Text = statusText or "Siga @" .. _ServerFinderState.CREATOR_USERNAME .. " para liberar o script."
+    _ServerFinderState.FollowStatus.TextColor3 = Color3.fromRGB(255, 215, 125)
+    _ServerFinderState.FollowOpen.Visible = true
+    _ServerFinderState.FollowCheck.Visible = true
+    _ServerFinderState.FollowOpen.Active = true
+    _ServerFinderState.FollowCheck.Active = true
+    _ServerFinderState.LoadingContinue.Visible = false
 end
 
-local function unlockFollowGate()
-    local shouldHide = followGateVisible
-    local minimumRemaining = math.max(0, FOLLOW_LOADING_MIN_SECONDS - (os.clock() - followGateStartedAt))
-    followUnlocked = true
-    followGateVisible = false
-    followChecking = false
-    FollowStatus.Text = "✓ Follow confirmado. O painel foi liberado."
-    FollowStatus.TextColor3 = Color3.fromRGB(145, 240, 180)
-    FollowOpen.Visible = false
-    FollowCheck.Visible = false
-    LoadingContinue.Visible = false
-    LoadingClose.Visible = true
-    LoadingTitle.Text = "Acesso liberado!"
-    LoadingDetail.Text = "Obrigado por seguir o criador."
-    LoadingHint.Text = "Abrindo o painel automaticamente..."
-    LoadingBarFill.Size = UDim2.new(1, 0, 1, 0)
+_ServerFinderState.unlockFollowGate = function()
+    local shouldHide = _ServerFinderState.followGateVisible
+    local minimumRemaining = math.max(0, _ServerFinderState.FOLLOW_LOADING_MIN_SECONDS - (os.clock() - _ServerFinderState.followGateStartedAt))
+    _ServerFinderState.followUnlocked = true
+    _ServerFinderState.followGateVisible = false
+    _ServerFinderState.followChecking = false
+    _ServerFinderState.FollowStatus.Text = "✓ Follow confirmado. O painel foi liberado."
+    _ServerFinderState.FollowStatus.TextColor3 = Color3.fromRGB(145, 240, 180)
+    _ServerFinderState.FollowOpen.Visible = false
+    _ServerFinderState.FollowCheck.Visible = false
+    _ServerFinderState.LoadingContinue.Visible = false
+    _ServerFinderState.LoadingClose.Visible = true
+    _ServerFinderState.LoadingTitle.Text = "Acesso liberado!"
+    _ServerFinderState.LoadingDetail.Text = "Obrigado por seguir o criador."
+    _ServerFinderState.LoadingHint.Text = "Abrindo o painel automaticamente..."
+    _ServerFinderState.LoadingBarFill.Size = UDim2.new(1, 0, 1, 0)
 
     if shouldHide then
         task.spawn(function()
             task.wait(minimumRemaining)
-            if not destroyed and Loading.Parent then
-                hideLoading(true)
+            if not _ServerFinderState.destroyed and _ServerFinderState.Loading.Parent then
+                _ServerFinderState.hideLoading(true)
             end
         end)
     end
 end
 
-local function checkFollowGate(silent)
-    if destroyed or followChecking then
+_ServerFinderState.checkFollowGate = function(silent)
+    if _ServerFinderState.destroyed or _ServerFinderState.followChecking then
         return
     end
-    if followUnlocked and not silent then
+    if _ServerFinderState.followUnlocked and not silent then
         return
     end
 
-    followChecking = true
-    if not silent or not followUnlocked then
-        Loading.Visible = true
-        LoadingClose.Visible = true
-        LoadingTitle.Text = "Verificando follow..."
-        LoadingDetail.Text = "Consultando o perfil do criador."
-        FollowStatus.Text = "Aguarde, verificando..."
-        FollowStatus.TextColor3 = Color3.fromRGB(225, 210, 110)
-        FollowOpen.Active = false
-        FollowCheck.Active = false
+    _ServerFinderState.followChecking = true
+    if not silent or not _ServerFinderState.followUnlocked then
+        _ServerFinderState.Loading.Visible = true
+        _ServerFinderState.LoadingClose.Visible = true
+        _ServerFinderState.LoadingTitle.Text = "Verificando follow..."
+        _ServerFinderState.LoadingDetail.Text = "Consultando o perfil do criador."
+        _ServerFinderState.FollowStatus.Text = "Aguarde, verificando..."
+        _ServerFinderState.FollowStatus.TextColor3 = Color3.fromRGB(225, 210, 110)
+        _ServerFinderState.FollowOpen.Active = false
+        _ServerFinderState.FollowCheck.Active = false
     end
 
     task.spawn(function()
-        local ok, isFollowing = pcall(queryCreatorFollow)
-        if destroyed or not Loading.Parent then
+        local ok, isFollowing = pcall(_ServerFinderState.queryCreatorFollow)
+        if _ServerFinderState.destroyed or not _ServerFinderState.Loading.Parent then
             return
         end
 
-        followChecking = false
+        _ServerFinderState.followChecking = false
         if ok and isFollowing == true then
-            unlockFollowGate()
+            _ServerFinderState.unlockFollowGate()
             return
         end
 
         if ok and isFollowing == false then
-            if searching and followUnlocked then
+            if _ServerFinderState.searching and _ServerFinderState.followUnlocked then
                 return
             end
-            lockFollowGate("Ainda não encontrei o follow. Siga o criador; o painel abrirá sozinho quando confirmar.")
-        elseif not followUnlocked then
-            Loading.Visible = true
-            LoadingClose.Visible = true
-            FollowOpen.Active = true
-            FollowCheck.Active = true
+            _ServerFinderState.lockFollowGate("Ainda não encontrei o follow. Siga o criador; o painel abrirá sozinho quando confirmar.")
+        elseif not _ServerFinderState.followUnlocked then
+            _ServerFinderState.Loading.Visible = true
+            _ServerFinderState.LoadingClose.Visible = true
+            _ServerFinderState.FollowOpen.Active = true
+            _ServerFinderState.FollowCheck.Active = true
             local reason = tostring(isFollowing or "erro desconhecido"):gsub("[%c]+", " ")
             if #reason > 90 then
                 reason = reason:sub(1, 90) .. "..."
             end
-            FollowStatus.Text = "Falha ao verificar follow: " .. reason
-            FollowStatus.TextColor3 = Color3.fromRGB(240, 130, 130)
-            LoadingTitle.Text = "Follow necessário"
-            LoadingDetail.Text = "Confira o HTTP do executor e tente verificar novamente."
+            _ServerFinderState.FollowStatus.Text = "Falha ao verificar follow: " .. reason
+            _ServerFinderState.FollowStatus.TextColor3 = Color3.fromRGB(240, 130, 130)
+            _ServerFinderState.LoadingTitle.Text = "Follow necessário"
+            _ServerFinderState.LoadingDetail.Text = "Confira o HTTP do executor e tente verificar novamente."
         end
     end)
 end
 
-FollowOpen.MouseButton1Click:Connect(function()
+_ServerFinderState.FollowOpen.MouseButton1Click:Connect(function()
     local opened = false
     local openers = {}
     if type(open_url) == "function" then
@@ -3347,7 +3373,7 @@ FollowOpen.MouseButton1Click:Connect(function()
     end
 
     for _, opener in ipairs(openers) do
-        local ok = pcall(opener, CREATOR_PROFILE_URL)
+        local ok = pcall(opener, _ServerFinderState.CREATOR_PROFILE_URL)
         if ok then
             opened = true
             break
@@ -3355,84 +3381,84 @@ FollowOpen.MouseButton1Click:Connect(function()
     end
 
     if opened then
-        FollowStatus.Text = "Perfil aberto. Siga o criador e clique em verificar."
-    elseif copyToClipboard(CREATOR_PROFILE_URL) then
-        FollowStatus.Text = "Link do perfil copiado. Siga o criador e clique em verificar."
+        _ServerFinderState.FollowStatus.Text = "Perfil aberto. Siga o criador e clique em verificar."
+    elseif _ServerFinderState.copyToClipboard(_ServerFinderState.CREATOR_PROFILE_URL) then
+        _ServerFinderState.FollowStatus.Text = "Link do perfil copiado. Siga o criador e clique em verificar."
     else
-        FollowStatus.Text = CREATOR_PROFILE_URL
+        _ServerFinderState.FollowStatus.Text = _ServerFinderState.CREATOR_PROFILE_URL
     end
-    FollowStatus.TextColor3 = Color3.fromRGB(165, 215, 240)
+    _ServerFinderState.FollowStatus.TextColor3 = Color3.fromRGB(165, 215, 240)
 end)
 
-FollowCheck.MouseButton1Click:Connect(checkFollowGate)
+_ServerFinderState.FollowCheck.MouseButton1Click:Connect(_ServerFinderState.checkFollowGate)
 
-LoadingContinue.MouseButton1Click:Connect(function()
-    if followUnlocked then
-        hideLoading(true)
+_ServerFinderState.LoadingContinue.MouseButton1Click:Connect(function()
+    if _ServerFinderState.followUnlocked then
+        _ServerFinderState.hideLoading(true)
     else
-        checkFollowGate()
+        _ServerFinderState.checkFollowGate()
     end
 end)
 
-LoadingClose.MouseButton1Click:Connect(function()
-    destroyed = true
-    if Gui and Gui.Parent then
-        Gui:Destroy()
+_ServerFinderState.LoadingClose.MouseButton1Click:Connect(function()
+    _ServerFinderState.destroyed = true
+    if _ServerFinderState.Gui and _ServerFinderState.Gui.Parent then
+        _ServerFinderState.Gui:Destroy()
     end
 end)
 
 -- Mantém o estado sincronizado: seguir libera sozinho; deixar de seguir mostra o bloqueio.
 task.spawn(function()
-    while not destroyed do
-        task.wait(FOLLOW_RECHECK_INTERVAL)
-        if not destroyed and not searching then
-            checkFollowGate(true)
+    while not _ServerFinderState.destroyed do
+        task.wait(_ServerFinderState.FOLLOW_RECHECK_INTERVAL)
+        if not _ServerFinderState.destroyed and not _ServerFinderState.searching then
+            _ServerFinderState.checkFollowGate(true)
         end
     end
 end)
 
-local lastViewport
-loadingConnection = RunService.RenderStepped:Connect(function(delta)
-    if destroyed then
-        loadingConnection:Disconnect()
+_ServerFinderState.lastViewport = nil
+_ServerFinderState.loadingConnection = _ServerFinderState.RunService.RenderStepped:Connect(function(delta)
+    if _ServerFinderState.destroyed then
+        _ServerFinderState.loadingConnection:Disconnect()
         return
     end
-    local viewport = getViewport()
-    if not lastViewport or viewport.X ~= lastViewport.X or viewport.Y ~= lastViewport.Y then
-        lastViewport = viewport
-        applyResponsiveScale()
-        clampWindowToViewport()
+    local viewport = _ServerFinderState.getViewport()
+    if not _ServerFinderState.lastViewport or viewport.X ~= _ServerFinderState.lastViewport.X or viewport.Y ~= _ServerFinderState.lastViewport.Y then
+        _ServerFinderState.lastViewport = viewport
+        _ServerFinderState.applyResponsiveScale()
+        _ServerFinderState.clampWindowToViewport()
     end
-    if Loading.Visible and not loadingFinishing and not followChecking and not followUnlocked then
-        loadingProgress = math.min(1, loadingProgress + delta * 0.18)
-        LoadingBarFill.Size = UDim2.new(loadingProgress, 0, 1, 0)
-        LoadingTitle.Text = "Preparando seu painel" .. string.rep(".", math.floor(os.clock() * 2) % 4)
+    if _ServerFinderState.Loading.Visible and not _ServerFinderState.loadingFinishing and not _ServerFinderState.followChecking and not _ServerFinderState.followUnlocked then
+        _ServerFinderState.loadingProgress = math.min(1, _ServerFinderState.loadingProgress + delta * 0.18)
+        _ServerFinderState.LoadingBarFill.Size = UDim2.new(_ServerFinderState.loadingProgress, 0, 1, 0)
+        _ServerFinderState.LoadingTitle.Text = "Preparando seu painel" .. string.rep(".", math.floor(os.clock() * 2) % 4)
     end
 end)
 
 -- Teleporte e busca verificada.
-local function teleport(server, excludeFriendServers)
+_ServerFinderState.teleport = function(server, excludeFriendServers)
     local instanceId = type(server) == "table" and (server.id or server.gameId)
     if type(instanceId) ~= "string" or instanceId == "" then
-        setStatus(SearchStatus, "O servidor selecionado não possui um ID válido.", Color3.fromRGB(240, 130, 130))
+        _ServerFinderState.setStatus(_ServerFinderState.SearchStatus, "O servidor selecionado não possui um ID válido.", Color3.fromRGB(240, 130, 130))
         return false
     end
 
     if excludeFriendServers then
-        friendServerCache = nil
-        friendServerCacheAt = 0
-        local friendsOk, currentFriendServers = pcall(getFriendServerIds)
+        _ServerFinderState.friendServerCache = nil
+        _ServerFinderState.friendServerCacheAt = 0
+        local friendsOk, currentFriendServers = pcall(_ServerFinderState.getFriendServerIds)
         if not friendsOk then
-            setStatus(
-                SearchStatus,
+            _ServerFinderState.setStatus(
+                _ServerFinderState.SearchStatus,
                 "Não consegui confirmar os servidores dos seus amigos; teleporte cancelado.",
                 Color3.fromRGB(240, 130, 130)
             )
             return false
         end
         if currentFriendServers[instanceId] then
-            setStatus(
-                SearchStatus,
+            _ServerFinderState.setStatus(
+                _ServerFinderState.SearchStatus,
                 "Um amigo entrou nesse servidor durante a confirmação. Vou procurar outro.",
                 Color3.fromRGB(225, 210, 110)
             )
@@ -3440,13 +3466,13 @@ local function teleport(server, excludeFriendServers)
         end
     end
 
-    blacklist[instanceId] = os.time() + Config.blacklistTime
-    teleportFailed = false
+    _ServerFinderState.blacklist[instanceId] = os.time() + _ServerFinderState.Config.blacklistTime
+    _ServerFinderState.teleportFailed = false
     local teleportStarted = false
     local teleportStartedAt
     local attemptConnection
     pcall(function()
-        attemptConnection = Player.OnTeleport:Connect(function(state)
+        attemptConnection = _ServerFinderState.Player.OnTeleport:Connect(function(state)
             local stateName = tostring(state)
             if stateName:find("Started", 1, true)
                 or stateName:find("WaitingForServer", 1, true)
@@ -3454,35 +3480,35 @@ local function teleport(server, excludeFriendServers)
                 teleportStarted = true
                 teleportStartedAt = teleportStartedAt or os.clock()
             elseif stateName:find("Failed", 1, true) then
-                teleportFailed = true
+                _ServerFinderState.teleportFailed = true
             end
         end)
     end)
 
     local ok, errorMessage = pcall(function()
-        TeleportService:TeleportToPlaceInstance(PLACE_ID, instanceId, Player)
+        _ServerFinderState.TeleportService:TeleportToPlaceInstance(_ServerFinderState.PLACE_ID, instanceId, _ServerFinderState.Player)
     end)
     if not ok then
         if attemptConnection then
             attemptConnection:Disconnect()
         end
-        setStatus(SearchStatus, "Falha ao iniciar: " .. tostring(errorMessage), Color3.fromRGB(240, 130, 130))
+        _ServerFinderState.setStatus(_ServerFinderState.SearchStatus, "Falha ao iniciar: " .. tostring(errorMessage), Color3.fromRGB(240, 130, 130))
         return false
     end
 
     if not attemptConnection then
         local fallbackDeadline = os.clock() + 12
-        while not teleportFailed and not destroyed and os.clock() < fallbackDeadline do
+        while not _ServerFinderState.teleportFailed and not _ServerFinderState.destroyed and os.clock() < fallbackDeadline do
             task.wait(0.1)
         end
-        if not teleportFailed and not destroyed then
-            setStatus(SearchStatus, "Não foi possível confirmar o início do teleporte.", Color3.fromRGB(240, 130, 130))
+        if not _ServerFinderState.teleportFailed and not _ServerFinderState.destroyed then
+            _ServerFinderState.setStatus(_ServerFinderState.SearchStatus, "Não foi possível confirmar o início do teleporte.", Color3.fromRGB(240, 130, 130))
         end
         return false
     end
 
     local deadline = os.clock() + 12
-    while not teleportFailed and not destroyed and os.clock() < deadline do
+    while not _ServerFinderState.teleportFailed and not _ServerFinderState.destroyed and os.clock() < deadline do
         local startupConfirmed = teleportStarted
             and teleportStartedAt
             and os.clock() - teleportStartedAt >= 1.5
@@ -3493,71 +3519,71 @@ local function teleport(server, excludeFriendServers)
     end
     attemptConnection:Disconnect()
 
-    if teleportStarted and not teleportFailed then
+    if teleportStarted and not _ServerFinderState.teleportFailed then
         return true
     end
-    if not teleportFailed and not destroyed then
-        setStatus(SearchStatus, "O teleporte não começou dentro do tempo esperado. Tente outro servidor.", Color3.fromRGB(240, 130, 130))
+    if not _ServerFinderState.teleportFailed and not _ServerFinderState.destroyed then
+        _ServerFinderState.setStatus(_ServerFinderState.SearchStatus, "O teleporte não começou dentro do tempo esperado. Tente outro servidor.", Color3.fromRGB(240, 130, 130))
     end
     return false
 end
 
 pcall(function()
-    teleportInitFailedConnection = TeleportService.TeleportInitFailed:Connect(function(player, result, errorMessage)
-        if player == Player then
-            teleportFailed = true
-            setStatus(SearchStatus, "Teleporte recusado: " .. tostring(result) .. " - " .. tostring(errorMessage or "sem detalhes"), Color3.fromRGB(240, 130, 130))
+    _ServerFinderState.teleportInitFailedConnection = _ServerFinderState.TeleportService.TeleportInitFailed:Connect(function(player, result, errorMessage)
+        if player == _ServerFinderState.Player then
+            _ServerFinderState.teleportFailed = true
+            _ServerFinderState.setStatus(_ServerFinderState.SearchStatus, "Teleporte recusado: " .. tostring(result) .. " - " .. tostring(errorMessage or "sem detalhes"), Color3.fromRGB(240, 130, 130))
         end
     end)
 end)
 
-local function searchVerifiedUser()
-    if not followUnlocked then
-        setStatus(VerifiedStatus, "Siga o criador para liberar o script.", Color3.fromRGB(225, 210, 110))
+_ServerFinderState.searchVerifiedUser = function()
+    if not _ServerFinderState.followUnlocked then
+        _ServerFinderState.setStatus(_ServerFinderState.VerifiedStatus, "Siga o criador para liberar o script.", Color3.fromRGB(225, 210, 110))
         return
     end
-    local username = VerifiedInput.Text:gsub("^%s+", ""):gsub("%s+$", "")
+    local username = _ServerFinderState.VerifiedInput.Text:gsub("^%s+", ""):gsub("%s+$", "")
     if username == "" then
-        setStatus(VerifiedStatus, "Digite um username.", Color3.fromRGB(240, 130, 130))
+        _ServerFinderState.setStatus(_ServerFinderState.VerifiedStatus, "Digite um username.", Color3.fromRGB(240, 130, 130))
         return
     end
-    if searching then
-        setStatus(VerifiedStatus, "Aguarde a busca atual terminar.", Color3.fromRGB(225, 210, 110))
+    if _ServerFinderState.searching then
+        _ServerFinderState.setStatus(_ServerFinderState.VerifiedStatus, "Aguarde a busca atual terminar.", Color3.fromRGB(225, 210, 110))
         return
     end
 
-    searching = true
-    setStatus(VerifiedStatus, "Consultando o perfil...", Color3.fromRGB(225, 210, 110))
-    showLoading("Verificando o usuário...")
+    _ServerFinderState.searching = true
+    _ServerFinderState.setStatus(_ServerFinderState.VerifiedStatus, "Consultando o perfil...", Color3.fromRGB(225, 210, 110))
+    _ServerFinderState.showLoading("Verificando o usuário...")
 
     task.spawn(function()
         local ok, result = pcall(function()
-            local lookupResponse = httpRequest(
+            local lookupResponse = _ServerFinderState.httpRequest(
                 "https://users.roblox.com/v1/usernames/users",
                 "POST",
-                HttpService:JSONEncode({
+                _ServerFinderState.HttpService:JSONEncode({
                     usernames = {username},
                     excludeBannedUsers = true,
                 })
             )
-            local lookupData = HttpService:JSONDecode(lookupResponse)
+            local lookupData = _ServerFinderState.HttpService:JSONDecode(lookupResponse)
             local userData = lookupData.data and lookupData.data[1]
             if not userData or not userData.id then
                 error("Usuário não encontrado.")
             end
 
-            local profileResponse = httpGet("https://users.roblox.com/v1/users/" .. tostring(userData.id))
-            local profile = HttpService:JSONDecode(profileResponse)
+            local profileResponse = _ServerFinderState.httpGet("https://users.roblox.com/v1/users/" .. tostring(userData.id))
+            local profile = _ServerFinderState.HttpService:JSONDecode(profileResponse)
             if profile.hasVerifiedBadge ~= true then
                 error("Esse usuário não possui o selo de verificação.")
             end
 
-            local presenceResponse = httpRequest(
+            local presenceResponse = _ServerFinderState.httpRequest(
                 "https://presence.roblox.com/v1/presence/users",
                 "POST",
-                HttpService:JSONEncode({userIds = {userData.id}})
+                _ServerFinderState.HttpService:JSONEncode({userIds = {userData.id}})
             )
-            local presenceData = HttpService:JSONDecode(presenceResponse)
+            local presenceData = _ServerFinderState.HttpService:JSONDecode(presenceResponse)
             local presence = presenceData.userPresences and presenceData.userPresences[1]
 
             if not presence
@@ -3566,7 +3592,7 @@ local function searchVerifiedUser()
                 error("O usuário verificado não está em um servidor agora.")
             end
 
-            if tonumber(presence.placeId) ~= PLACE_ID then
+            if tonumber(presence.placeId) ~= _ServerFinderState.PLACE_ID then
                 error("O usuário verificado não está no Brookhaven.")
             end
 
@@ -3577,48 +3603,48 @@ local function searchVerifiedUser()
         end)
 
         if not ok then
-            setStatus(VerifiedStatus, tostring(result), Color3.fromRGB(240, 130, 130))
-            searching = false
-            hideLoading()
+            _ServerFinderState.setStatus(_ServerFinderState.VerifiedStatus, tostring(result), Color3.fromRGB(240, 130, 130))
+            _ServerFinderState.searching = false
+            _ServerFinderState.hideLoading()
             return
         end
 
-        setStatus(VerifiedStatus, "Servidor encontrado. Aguardando confirmação...", Color3.fromRGB(225, 210, 110))
-        VerifiedPopup.Visible = false
-        if not askTeleportConfirmation(result, "o servidor do usuário " .. result.username) then
-            searching = false
-            hideLoading()
-            setStatus(VerifiedStatus, "Teleporte cancelado.", Color3.fromRGB(225, 210, 110))
+        _ServerFinderState.setStatus(_ServerFinderState.VerifiedStatus, "Servidor encontrado. Aguardando confirmação...", Color3.fromRGB(225, 210, 110))
+        _ServerFinderState.VerifiedPopup.Visible = false
+        if not _ServerFinderState.askTeleportConfirmation(result, "o servidor do usuário " .. result.username) then
+            _ServerFinderState.searching = false
+            _ServerFinderState.hideLoading()
+            _ServerFinderState.setStatus(_ServerFinderState.VerifiedStatus, "Teleporte cancelado.", Color3.fromRGB(225, 210, 110))
             return
         end
-        setStatus(VerifiedStatus, "Entrando no servidor confirmado...", Color3.fromRGB(160, 230, 175))
-        local joined = teleport(result)
-        searching = false
-        hideLoading()
+        _ServerFinderState.setStatus(_ServerFinderState.VerifiedStatus, "Entrando no servidor confirmado...", Color3.fromRGB(160, 230, 175))
+        local joined = _ServerFinderState.teleport(result)
+        _ServerFinderState.searching = false
+        _ServerFinderState.hideLoading()
         if not joined then
-            setStatus(VerifiedStatus, "O teleporte para o servidor falhou.", Color3.fromRGB(240, 130, 130))
+            _ServerFinderState.setStatus(_ServerFinderState.VerifiedStatus, "O teleporte para o servidor falhou.", Color3.fromRGB(240, 130, 130))
         end
     end)
 end
 
-VerifiedSearch.MouseButton1Click:Connect(searchVerifiedUser)
+_ServerFinderState.VerifiedSearch.MouseButton1Click:Connect(_ServerFinderState.searchVerifiedUser)
 
-runSearch = function(mode, label)
-    if not followUnlocked then
-        setStatus(SearchStatus, "Siga o criador para liberar o script.", Color3.fromRGB(225, 210, 110))
+_ServerFinderState.runSearch = function(mode, label)
+    if not _ServerFinderState.followUnlocked then
+        _ServerFinderState.setStatus(_ServerFinderState.SearchStatus, "Siga o criador para liberar o script.", Color3.fromRGB(225, 210, 110))
         return
     end
-    if searching then
+    if _ServerFinderState.searching then
         return
     end
 
-    searching = true
-    friendServerCache = nil
-    friendServerCacheAt = 0
+    _ServerFinderState.searching = true
+    _ServerFinderState.friendServerCache = nil
+    _ServerFinderState.friendServerCacheAt = 0
     if mode == "matchmaking" then
-        showLoading("Aguardando o matchmaking do Roblox...")
+        _ServerFinderState.showLoading("Aguardando o matchmaking do Roblox...")
     else
-        showLoading("Buscando " .. label .. "...")
+        _ServerFinderState.showLoading("Buscando " .. label .. "...")
     end
 
     task.spawn(function()
@@ -3628,29 +3654,29 @@ runSearch = function(mode, label)
         local ok, searchError = pcall(function()
             local maxAttempts = mode == "matchmaking" and 1 or (mode == "brazil" and 2 or 5)
             for attempt = 1, maxAttempts do
-                if destroyed then
+                if _ServerFinderState.destroyed then
                     break
                 end
-                setStatus(
-                    SearchStatus,
+                _ServerFinderState.setStatus(
+                    _ServerFinderState.SearchStatus,
                     label .. " • tentativa " .. attempt .. "/" .. maxAttempts,
                     Color3.fromRGB(225, 210, 110)
                 )
                 if mode == "matchmaking" then
-                    setStatus(
-                        SearchStatus,
+                    _ServerFinderState.setStatus(
+                        _ServerFinderState.SearchStatus,
                         "Pedindo ao Roblox para escolher a nova instância...",
                         Color3.fromRGB(225, 210, 110)
                     )
-                    if askTeleportConfirmation(nil, label, true) then
-                        showLoading("Entrando pelo matchmaking do Roblox...")
+                    if _ServerFinderState.askTeleportConfirmation(nil, label, true) then
+                        _ServerFinderState.showLoading("Entrando pelo matchmaking do Roblox...")
                         local requested, requestError = pcall(function()
-                            TeleportService:Teleport(PLACE_ID, Player)
+                            _ServerFinderState.TeleportService:Teleport(_ServerFinderState.PLACE_ID, _ServerFinderState.Player)
                         end)
                         if requested then
                             connected = true
-                            setStatus(
-                                SearchStatus,
+                            _ServerFinderState.setStatus(
+                                _ServerFinderState.SearchStatus,
                                 "Matchmaking iniciado; o Roblox escolhe a instância automaticamente.",
                                 Color3.fromRGB(165, 215, 240)
                             )
@@ -3659,12 +3685,12 @@ runSearch = function(mode, label)
                         end
                     else
                         cancelled = true
-                        setStatus(SearchStatus, "Teleporte cancelado.", Color3.fromRGB(225, 210, 110))
+                        _ServerFinderState.setStatus(_ServerFinderState.SearchStatus, "Teleporte cancelado.", Color3.fromRGB(225, 210, 110))
                     end
                     break
                 end
 
-                local server, selectionError = chooseServer(mode)
+                local server, selectionError = _ServerFinderState.chooseServer(mode)
                 if server and mode == "brazil" and server.regionUnverified then
                     selectionError = "A regiao do servidor nao foi confirmada. Nenhum teleporte foi feito."
                     server = nil
@@ -3672,30 +3698,29 @@ runSearch = function(mode, label)
                 if server then
                     local selectionText = "Selecionado: " .. server.playing .. "/" .. server.maxPlayers
                     if mode == "brazil" and server.region then
-                    elseif mode == "brazil" and server.region then
                         local city = server.region.city ~= "" and server.region.city .. ", " or ""
                         selectionText = selectionText .. " • " .. city .. server.region.country
                     end
-                    setStatus(
-                        SearchStatus,
+                    _ServerFinderState.setStatus(
+                        _ServerFinderState.SearchStatus,
                         selectionText,
                         Color3.fromRGB(165, 215, 240)
                     )
-                    if askTeleportConfirmation(server, label) then
-                        showLoading("Conectando ao servidor...")
-                        if teleport(server, true) then
+                    if _ServerFinderState.askTeleportConfirmation(server, label) then
+                        _ServerFinderState.showLoading("Conectando ao servidor...")
+                        if _ServerFinderState.teleport(server, true) then
                             connected = true
                             break
                         end
                     else
                         cancelled = true
-                        setStatus(SearchStatus, "Teleporte cancelado.", Color3.fromRGB(225, 210, 110))
+                        _ServerFinderState.setStatus(_ServerFinderState.SearchStatus, "Teleporte cancelado.", Color3.fromRGB(225, 210, 110))
                         break
                     end
                 else
                     failureMessage = selectionError
-                    setStatus(
-                        SearchStatus,
+                    _ServerFinderState.setStatus(
+                        _ServerFinderState.SearchStatus,
                         failureMessage or "Não foi possível encontrar um servidor.",
                         Color3.fromRGB(240, 130, 130)
                     )
@@ -3708,113 +3733,113 @@ runSearch = function(mode, label)
         if not ok then
             failureMessage = "A busca foi interrompida: " .. tostring(searchError)
         end
-        searching = false
-        hideLoading()
+        _ServerFinderState.searching = false
+        _ServerFinderState.hideLoading()
         if not connected and not cancelled then
-            setStatus(
-                SearchStatus,
+            _ServerFinderState.setStatus(
+                _ServerFinderState.SearchStatus,
                 failureMessage or "Não foi possível trocar de servidor.",
                 Color3.fromRGB(240, 130, 130)
             )
         end
     end)
 end
-BRButton.MouseButton1Click:Connect(function()
-    runSearch("brazil", "Servidor BR")
+_ServerFinderState.BRButton.MouseButton1Click:Connect(function()
+    _ServerFinderState.runSearch("brazil", "Servidor BR")
 end)
-RandomButton.MouseButton1Click:Connect(function()
-    runSearch("random", "servidor aleatório")
+_ServerFinderState.RandomButton.MouseButton1Click:Connect(function()
+    _ServerFinderState.runSearch("random", "servidor aleatório")
 end)
 
 -- Arrastar janela.
-local dragging = false
-local dragStart
-local startPosition
-local resizing = false
-local resizeStart
-local resizeStartScale
+ _ServerFinderState.dragging = false
+_ServerFinderState.dragStart = nil
+_ServerFinderState.startPosition = nil
+ _ServerFinderState.resizing = false
+_ServerFinderState.resizeStart = nil
+_ServerFinderState.resizeStartScale = nil
 
-Header.InputBegan:Connect(function(input)
+_ServerFinderState.Header.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPosition = Window.Position
+        _ServerFinderState.dragging = true
+        _ServerFinderState.dragStart = input.Position
+        _ServerFinderState.startPosition = _ServerFinderState.Window.Position
         input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
+                _ServerFinderState.dragging = false
             end
         end)
     end
 end)
 
-ResizeGrip.InputBegan:Connect(function(input)
+_ServerFinderState.ResizeGrip.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.Touch then
-        resizing = true
-        resizeStart = input.Position
-        resizeStartScale = manualScale
+        _ServerFinderState.resizing = true
+        _ServerFinderState.resizeStart = input.Position
+        _ServerFinderState.resizeStartScale = _ServerFinderState.manualScale
         input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
-                resizing = false
+                _ServerFinderState.resizing = false
             end
         end)
     end
 end)
 
-inputChangedConnection = UserInputService.InputChanged:Connect(function(input)
+_ServerFinderState.inputChangedConnection = _ServerFinderState.UserInputService.InputChanged:Connect(function(input)
     local isPointerMove = input.UserInputType == Enum.UserInputType.MouseMovement
         or input.UserInputType == Enum.UserInputType.Touch
-    if dragging and isPointerMove then
-        local delta = input.Position - dragStart
-        Window.Position = UDim2.new(
-            startPosition.X.Scale,
-            startPosition.X.Offset + delta.X,
-            startPosition.Y.Scale,
-            startPosition.Y.Offset + delta.Y
+    if _ServerFinderState.dragging and isPointerMove then
+        local delta = input.Position - _ServerFinderState.dragStart
+        _ServerFinderState.Window.Position = UDim2.new(
+            _ServerFinderState.startPosition.X.Scale,
+            _ServerFinderState.startPosition.X.Offset + delta.X,
+            _ServerFinderState.startPosition.Y.Scale,
+            _ServerFinderState.startPosition.Y.Offset + delta.Y
         )
-        clampWindowToViewport()
+        _ServerFinderState.clampWindowToViewport()
     end
 
-    if resizing and isPointerMove then
-        local delta = input.Position - resizeStart
-        local horizontalChange = delta.X / BASE_WIDTH
-        local verticalChange = delta.Y / BASE_HEIGHT
+    if _ServerFinderState.resizing and isPointerMove then
+        local delta = input.Position - _ServerFinderState.resizeStart
+        local horizontalChange = delta.X / _ServerFinderState.BASE_WIDTH
+        local verticalChange = delta.Y / _ServerFinderState.BASE_HEIGHT
         local scaleChange = math.max(horizontalChange, verticalChange)
-        manualScale = clamp(resizeStartScale + scaleChange, MIN_SCALE, MAX_USER_SCALE)
-        applyResponsiveScale()
-        clampWindowToViewport()
+        _ServerFinderState.manualScale = _ServerFinderState.clamp(_ServerFinderState.resizeStartScale + scaleChange, _ServerFinderState.MIN_SCALE, _ServerFinderState.MAX_USER_SCALE)
+        _ServerFinderState.applyResponsiveScale()
+        _ServerFinderState.clampWindowToViewport()
     end
 end)
 
-local minimized = false
-Minimize.MouseButton1Click:Connect(function()
-    minimized = not minimized
-    Sidebar.Visible = not minimized
-    Main.Visible = not minimized
-    Window.Size = minimized
+ _ServerFinderState.minimized = false
+_ServerFinderState.Minimize.MouseButton1Click:Connect(function()
+    _ServerFinderState.minimized = not _ServerFinderState.minimized
+    _ServerFinderState.Sidebar.Visible = not _ServerFinderState.minimized
+    _ServerFinderState.Main.Visible = not _ServerFinderState.minimized
+    _ServerFinderState.Window.Size = _ServerFinderState.minimized
         and UDim2.new(0, 720, 0, 48)
         or UDim2.new(0, 720, 0, 460)
-    Minimize.Text = minimized and "+" or "—"
-    applyResponsiveScale()
-    clampWindowToViewport()
+    _ServerFinderState.Minimize.Text = _ServerFinderState.minimized and "+" or "—"
+    _ServerFinderState.applyResponsiveScale()
+    _ServerFinderState.clampWindowToViewport()
 end)
 
-Close.MouseButton1Click:Connect(function()
-    destroyed = true
-    Gui:Destroy()
+_ServerFinderState.Close.MouseButton1Click:Connect(function()
+    _ServerFinderState.destroyed = true
+    _ServerFinderState.Gui:Destroy()
 end)
 
 -- Aplica o tema salvo somente depois de toda a interface estar registrada.
-applyTheme(Config.theme)
-showPage("Buscar")
-addMessage(Config.botName, "Olá, " .. Config.userName .. ". A interface foi ajustada para a sua tela.")
+_ServerFinderState.applyTheme(_ServerFinderState.Config.theme)
+_ServerFinderState.showPage("Buscar")
+_ServerFinderState.addMessage(_ServerFinderState.Config.botName, "Olá, " .. _ServerFinderState.Config.userName .. ". A interface foi ajustada para a sua tela.")
 
 task.spawn(function()
     task.wait(0.4)
-    if not destroyed then
-        checkFollowGate()
+    if not _ServerFinderState.destroyed then
+        _ServerFinderState.checkFollowGate()
     end
 end)
 
-applyResponsiveScale()
+_ServerFinderState.applyResponsiveScale()
