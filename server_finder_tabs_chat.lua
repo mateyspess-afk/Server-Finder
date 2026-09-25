@@ -8,6 +8,8 @@
     - Liberação condicionada ao follow do criador, com verificação automática.
     - Abas Configs e Info com temas salvos, detalhes do script e acesso ao Discord.
     - Mantém busca de servidores, busca de usuário verificado e chatbot local.
+    - Mostra novidades ao iniciar e consulta o país pelo IP público somente após o usuário tocar em OK.
+    - Não exibe nem guarda o IP no script; o serviço de geolocalização recebe a conexão para estimar o país.
 ]]
 
 local Players = game:GetService("Players")
@@ -1166,6 +1168,32 @@ local function lookupIpRegion(ip)
     return nil
 end
 
+-- Consulta apenas o país da conexão atual; o serviço externo verá o IP público da conexão.
+local function lookupMyCountry()
+    local ok, body = pcall(function()
+        return httpGet("https://ipwho.is/")
+    end)
+    if not ok or type(body) ~= "string" then
+        return nil
+    end
+
+    local decoded, data = pcall(function()
+        return decodeJson(body)
+    end)
+    if not decoded or type(data) ~= "table" or data.success == false then
+        return nil
+    end
+
+    local countryCode = data.country_code or data.countryCode
+    if not countryCode then
+        return nil
+    end
+    return {
+        countryCode = string.upper(tostring(countryCode)),
+        country = tostring(data.country or countryCode),
+    }
+end
+
 local function getServerRegion(server)
     local cached = regionCache[server.id]
     if cached and os.time() - cached.time < Config.regionCacheTime then
@@ -1905,6 +1933,97 @@ local TeleportContinueButton = create("TextButton", {
 corner(TeleportContinueButton, 8)
 styleButton(TeleportContinueButton, Color3.fromRGB(0, 145, 185), Color3.fromRGB(25, 175, 215))
 
+-- Aviso de inicialização e consentimento antes de consultar a localização pelo IP.
+local StartupOverlay = create("Frame", {
+    Size = UDim2.fromScale(1, 1),
+    Position = UDim2.fromScale(0, 0),
+    BackgroundColor3 = Color3.fromRGB(5, 7, 12),
+    BackgroundTransparency = 0.3,
+    BorderSizePixel = 0,
+    Active = true,
+    ZIndex = 90,
+}, Window)
+
+local StartupPopup = create("Frame", {
+    Size = UDim2.fromOffset(430, 246),
+    Position = UDim2.new(0.5, -215, 0.5, -123),
+    BackgroundColor3 = Color3.fromRGB(29, 32, 44),
+    BorderSizePixel = 0,
+    ZIndex = 91,
+}, StartupOverlay)
+corner(StartupPopup, 12)
+stroke(StartupPopup, Color3.fromRGB(92, 190, 220), 1, 0.2)
+
+create("TextLabel", {
+    Size = UDim2.new(1, -28, 0, 30),
+    Position = UDim2.fromOffset(14, 12),
+    BackgroundTransparency = 1,
+    Text = "Server Finder — atualizações",
+    TextColor3 = Color3.fromRGB(245, 245, 250),
+    TextSize = 17,
+    Font = Enum.Font.SourceSansBold,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 92,
+}, StartupPopup)
+
+create("TextLabel", {
+    Size = UDim2.new(1, -28, 0, 82),
+    Position = UDim2.fromOffset(14, 47),
+    BackgroundTransparency = 1,
+    Text = "Novidades desta atualização:\n• Aviso exibido ao iniciar.\n• Identificação aproximada do país pela conexão atual.\n• A busca do país começa somente depois do OK.",
+    TextColor3 = Color3.fromRGB(215, 220, 235),
+    TextSize = 13,
+    TextWrapped = true,
+    Font = Enum.Font.SourceSans,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    TextYAlignment = Enum.TextYAlignment.Top,
+    ZIndex = 92,
+}, StartupPopup)
+
+create("TextLabel", {
+    Size = UDim2.new(1, -28, 0, 56),
+    Position = UDim2.fromOffset(14, 133),
+    BackgroundTransparency = 1,
+    Text = "Privacidade: ao tocar OK, ipwho.is receberá seu IP público para estimar o país. O script não exibe nem guarda o endereço IP.",
+    TextColor3 = Color3.fromRGB(170, 180, 200),
+    TextSize = 12,
+    TextWrapped = true,
+    Font = Enum.Font.SourceSans,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    TextYAlignment = Enum.TextYAlignment.Top,
+    ZIndex = 92,
+}, StartupPopup)
+
+local StartupOkButton = create("TextButton", {
+    Size = UDim2.fromOffset(120, 36),
+    Position = UDim2.new(1, -134, 1, -48),
+    BackgroundColor3 = Color3.fromRGB(0, 135, 190),
+    Text = "OK",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextSize = 14,
+    Font = Enum.Font.SourceSansBold,
+    ZIndex = 92,
+}, StartupPopup)
+corner(StartupOkButton, 8)
+styleButton(StartupOkButton, Color3.fromRGB(0, 135, 190), Color3.fromRGB(25, 165, 215))
+
+local StartupStatus = create("TextLabel", {
+    Size = UDim2.new(1, -40, 0, 36),
+    Position = UDim2.new(0, 20, 1, -48),
+    BackgroundColor3 = Color3.fromRGB(27, 34, 48),
+    BackgroundTransparency = 0.05,
+    BorderSizePixel = 0,
+    Visible = false,
+    Text = "",
+    TextColor3 = Color3.fromRGB(220, 230, 245),
+    TextSize = 13,
+    TextWrapped = true,
+    Font = Enum.Font.SourceSansBold,
+    ZIndex = 100,
+}, Window)
+corner(StartupStatus, 8)
+stroke(StartupStatus, Color3.fromRGB(92, 190, 220), 1, 0.35)
+
 local teleportDecision
 local function askTeleportConfirmation(server, context, matchmaking)
     local playing = tonumber(server and server.playing)
@@ -1939,6 +2058,43 @@ TeleportCancelButton.MouseButton1Click:Connect(function()
 end)
 TeleportContinueButton.MouseButton1Click:Connect(function()
     teleportDecision = true
+end)
+
+local startupCountryCheckStarted = false
+StartupOkButton.MouseButton1Click:Connect(function()
+    if startupCountryCheckStarted then
+        return
+    end
+    startupCountryCheckStarted = true
+    StartupOverlay.Visible = false
+    StartupStatus.Visible = true
+    StartupStatus.Text = "Verificando o país pela conexão…"
+    StartupStatus.TextColor3 = Color3.fromRGB(220, 230, 245)
+
+    task.spawn(function()
+        local country = lookupMyCountry()
+        if destroyed or not StartupStatus.Parent then
+            return
+        end
+
+        local message
+        if country and country.countryCode == "BR" then
+            message = "País detectado: Brasil (BR). A localização pelo IP é aproximada."
+            StartupStatus.TextColor3 = Color3.fromRGB(130, 225, 165)
+        elseif country then
+            message = "País detectado: " .. country.country .. " (" .. country.countryCode .. ")."
+            StartupStatus.TextColor3 = Color3.fromRGB(235, 205, 125)
+        else
+            message = "Não foi possível verificar o país pela conexão atual."
+            StartupStatus.TextColor3 = Color3.fromRGB(240, 145, 145)
+        end
+        StartupStatus.Text = message
+        task.delay(6, function()
+            if not destroyed and StartupStatus.Parent and StartupStatus.Text == message then
+                StartupStatus.Visible = false
+            end
+        end)
+    end)
 end)
 
 VerifiedButton.MouseButton1Click:Connect(function()
