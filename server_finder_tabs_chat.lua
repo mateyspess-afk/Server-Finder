@@ -1071,6 +1071,7 @@ local function collectServers(maxPages)
                 known[server.id] = true
                 if friendServers[server.id] then
                     excludedFriendServers = excludedFriendServers + 1
+                    blacklist[server.id] = os.time() + Config.blacklistTime
                 elseif isAvailable(server) then
                     table.insert(result, server)
                 end
@@ -1205,7 +1206,7 @@ local function serverScore(server, mode)
     local occupancy = playing / math.max(1, maximum)
     local score = occupancy * 1000 - free
 
-    if mode == "full" and (playing < 6 or free < 2) then
+    if (mode == "full" or mode == "brazil") and (playing < 6 or free < 2) then
         return -math.huge
     end
     return score
@@ -1273,6 +1274,9 @@ local function chooseServer(mode)
     end
     if mode == "full" then
         return nil, "Não encontrei um servidor com ocupação alta e vagas disponíveis. Tente o servidor aleatório."
+    end
+    if mode == "brazil" then
+        return nil, "Nao encontrei servidor BR com pelo menos 6 jogadores e 2 vagas."
     end
     return servers[1], nil
 end
@@ -3554,7 +3558,7 @@ runSearch = function(mode, label)
     end)
 end
 BRButton.MouseButton1Click:Connect(function()
-    runSearch("matchmaking", "Servidor BR")
+    runSearch("brazil", "Servidor BR")
 end)
 RandomButton.MouseButton1Click:Connect(function()
     runSearch("random", "servidor aleatório")
