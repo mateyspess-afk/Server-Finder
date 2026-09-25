@@ -1258,32 +1258,6 @@ _ServerFinderState.getServerRegion = function(server)
     return region, regionError
 end
 
-_ServerFinderState.selectApproximateBrazilServer = function(servers)
-    local selected
-    local selectedPing = math.huge
-
-    for _, server in ipairs(servers) do
-        if _ServerFinderState.serverScore(server, "brazil") > -math.huge then
-            local ping = tonumber(server.ping)
-            if ping and ping < selectedPing then
-                selected = server
-                selectedPing = ping
-            end
-        end
-    end
-
-    if selected then
-        selected.region = {
-            countryCode = "BR",
-            country = "Brasil (estimado pela latência)",
-            city = "",
-        }
-        selected.regionApproximate = true
-        selected.regionPing = selectedPing
-    end
-    return selected
-end
-
 _ServerFinderState.serverScore = function(server, mode)
     local playing = tonumber(server.playing) or 0
     local maximum = tonumber(server.maxPlayers) or 1
@@ -1345,11 +1319,7 @@ _ServerFinderState.chooseServer = function(mode)
         if #brazilServers > 0 then
             servers = brazilServers
         elseif _ServerFinderState.regionAuthRequired then
-            local approximateServer = _ServerFinderState.selectApproximateBrazilServer(servers)
-            if approximateServer then
-                return approximateServer, nil
-            end
-            return nil, "O Roblox bloqueou a confirmação exata da região (HTTP 401) e não há servidores com latência disponível para estimativa."
+            return nil, "O Roblox não permitiu confirmar a região deste servidor (HTTP 401). Nenhum teleporte foi feito para evitar entrar em outro país."
         elseif regionCheckBlocked then
             local detail = _ServerFinderState.regionApiError
             local message = "Não foi possível confirmar a região brasileira. Nenhum teleporte foi feito."
@@ -2053,7 +2023,7 @@ _ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 82),
     Position = UDim2.fromOffset(14, 47),
     BackgroundTransparency = 1,
-    Text = "Novidades desta atualização:\n• Aviso exibido ao iniciar.\n• Identificação aproximada do país pela conexão atual.\n• A busca do país começa somente depois do OK.",
+    Text = "Novidades desta atualização:\n• O popup aparece somente depois da verificação do follow.\n• O filtro BR não entra em outro país quando a região não pode ser confirmada.\n• O erro HTTP 401 agora é tratado sem travar a busca.",
     TextColor3 = Color3.fromRGB(215, 220, 235),
     TextSize = 13,
     TextWrapped = true,
@@ -2118,12 +2088,7 @@ _ServerFinderState.askTeleportConfirmation = function(server, context, matchmaki
             _ServerFinderState.TeleportConfirmMessage.Text = "O Roblox escolhe por localizacao e latencia; nao garante servidor brasileiro.\n"
             .. "Você quer sair deste servidor e continuar?"
     else
-        local approximationNotice = ""
-        if server and server.regionApproximate then
-            approximationNotice = "\nA região é uma estimativa pela latência; o Roblox bloqueou a confirmação exata."
-        end
         _ServerFinderState.TeleportConfirmMessage.Text = "Encontrei " .. target .. " (" .. occupancy .. ")."
-            .. approximationNotice
             .. "\nVocê quer sair deste servidor e continuar para o destino encontrado?"
     end
     _ServerFinderState.teleportDecision = nil
@@ -2599,7 +2564,7 @@ _ServerFinderState.answer = function(rawMessage)
     end
     if _ServerFinderState.hasAny(text, {"idioma", "brasil", "br", "english", "inglês"}) then
         _ServerFinderState.ChatState.lastIntent = "language"
-        return "O botão BR tenta confirmar o país do servidor. Se o Roblox bloquear essa consulta, ele usa a menor latência disponível e avisa que é uma estimativa."
+        return "O botão BR só teleporta quando consegue confirmar o país do servidor. Se o Roblox bloquear a consulta, a busca é cancelada para evitar outro país."
     end
     if _ServerFinderState.hasAny(text, {"servidor aleatório", "servidor aleatorio", "qualquer servidor"}) then
         _ServerFinderState.ChatState.lastIntent = "search"
@@ -2954,8 +2919,8 @@ _ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 44),
     Position = UDim2.fromOffset(14, 34),
     BackgroundTransparency = 1,
-    Text = "O botão BR tenta confirmar o país antes do teleporte e não entra em servidores com amigos.\n"
-        .. "Se o Roblox bloquear a confirmação exata, usa a menor latência disponível e identifica o resultado como estimado.",
+    Text = "O botão BR confirma o país antes do teleporte e não entra em servidores com amigos.\n"
+        .. "Se o Roblox bloquear a confirmação exata, a busca é cancelada para evitar teleporte para outro país.",
     TextColor3 = Color3.fromRGB(210, 215, 225),
     TextSize = 11,
     TextWrapped = true,
@@ -3775,9 +3740,6 @@ _ServerFinderState.runSearch = function(mode, label)
                     if mode == "brazil" and server.region then
                         local city = server.region.city ~= "" and server.region.city .. ", " or ""
                         selectionText = selectionText .. " • " .. city .. server.region.country
-                        if server.regionApproximate and server.regionPing then
-                            selectionText = selectionText .. " (" .. tostring(math.floor(server.regionPing)) .. " ms)"
-                        end
                     end
                     _ServerFinderState.setStatus(
                         _ServerFinderState.SearchStatus,
