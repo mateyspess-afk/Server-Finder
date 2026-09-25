@@ -3342,10 +3342,10 @@ local function teleport(server, excludeFriendServers)
 end
 
 pcall(function()
-    teleportInitFailedConnection = TeleportService.TeleportInitFailed:Connect(function(player, result)
+    teleportInitFailedConnection = TeleportService.TeleportInitFailed:Connect(function(player, result, errorMessage)
         if player == Player then
             teleportFailed = true
-            setStatus(SearchStatus, "Teleporte recusado: " .. tostring(result), Color3.fromRGB(240, 130, 130))
+            setStatus(SearchStatus, "Teleporte recusado: " .. tostring(result) .. " - " .. tostring(errorMessage or "sem detalhes"), Color3.fromRGB(240, 130, 130))
         end
     end)
 end)
