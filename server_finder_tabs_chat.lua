@@ -1319,7 +1319,7 @@ _ServerFinderState.chooseServer = function(mode)
         if #brazilServers > 0 then
             servers = brazilServers
         elseif _ServerFinderState.regionAuthRequired then
-            return nil, "O Roblox não permitiu confirmar a região deste servidor (HTTP 401). Nenhum teleporte foi feito para evitar entrar em outro país."
+            return nil, "O Roblox não permitiu confirmar a região deste servidor (HTTP 401).", true
         elseif regionCheckBlocked then
             local detail = _ServerFinderState.regionApiError
             local message = "Não foi possível confirmar a região brasileira. Nenhum teleporte foi feito."
@@ -1328,7 +1328,7 @@ _ServerFinderState.chooseServer = function(mode)
             else
                 message = message .. " Tente novamente mais tarde."
             end
-            return nil, message
+            return nil, message, true
         else
             return nil, "Não encontrei servidor BR elegível entre os servidores verificados."
         end
@@ -1787,7 +1787,7 @@ _ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 36),
     Position = UDim2.fromOffset(16, 49),
     BackgroundTransparency = 1,
-    Text = "BR confirma o país do servidor. As buscas ignoram servidores onde seus amigos estão.",
+    Text = "BR tenta confirmar o país; se falhar, oferece matchmaking sem garantia de região BR ou exclusão de amigos.",
     TextColor3 = Color3.fromRGB(165, 170, 190),
     TextSize = 12,
     TextWrapped = true,
@@ -1937,7 +1937,7 @@ _ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -30, 0, 34),
     Position = UDim2.fromOffset(15, 14),
     BackgroundTransparency = 1,
-    Text = "Servidor encontrado",
+    Text = "Confirmação de teleporte",
     TextColor3 = Color3.fromRGB(245, 245, 250),
     TextSize = 18,
     Font = Enum.Font.SourceSansBold,
@@ -2023,7 +2023,7 @@ _ServerFinderState.create("TextLabel", {
     Size = UDim2.new(1, -28, 0, 82),
     Position = UDim2.fromOffset(14, 47),
     BackgroundTransparency = 1,
-    Text = "Novidades desta atualização:\n• O popup aparece somente depois da verificação do follow.\n• O filtro BR não entra em outro país quando a região não pode ser confirmada.\n• O erro HTTP 401 agora é tratado sem travar a busca.",
+    Text = "Novidades desta atualização:\n• O popup aparece depois da verificação do follow.\n• Se a confirmação do BR falhar, há opção de matchmaking sem garantia de região ou exclusão de amigos.\n• O erro HTTP 401 é tratado sem travar a busca.",
     TextColor3 = Color3.fromRGB(215, 220, 235),
     TextSize = 13,
     TextWrapped = true,
@@ -2084,8 +2084,11 @@ _ServerFinderState.askTeleportConfirmation = function(server, context, matchmaki
     local occupancy = playing and maximum and (tostring(playing) .. "/" .. tostring(maximum)) or "disponível"
     local target = context or "um novo servidor"
 
-    if matchmaking then
-            _ServerFinderState.TeleportConfirmMessage.Text = "O Roblox escolhe por localizacao e latencia; nao garante servidor brasileiro.\n"
+    if matchmaking == "brazil-fallback" then
+        _ServerFinderState.TeleportConfirmMessage.Text = "Não consegui confirmar a região BR. O Roblox escolherá por latência; pode não ser brasileiro nem excluir servidores com amigos.\n"
+            .. "Quer continuar?"
+    elseif matchmaking then
+        _ServerFinderState.TeleportConfirmMessage.Text = "O Roblox escolhe por localizacao e latencia; nao garante servidor brasileiro.\n"
             .. "Você quer sair deste servidor e continuar?"
     else
         _ServerFinderState.TeleportConfirmMessage.Text = "Encontrei " .. target .. " (" .. occupancy .. ")."
@@ -2564,7 +2567,7 @@ _ServerFinderState.answer = function(rawMessage)
     end
     if _ServerFinderState.hasAny(text, {"idioma", "brasil", "br", "english", "inglês"}) then
         _ServerFinderState.ChatState.lastIntent = "language"
-        return "O botão BR só teleporta quando consegue confirmar o país do servidor. Se o Roblox bloquear a consulta, a busca é cancelada para evitar outro país."
+        return "O botão BR tenta confirmar o país. Se a consulta falhar, você pode aceitar o matchmaking do Roblox; ele não garante região brasileira nem exclusão de amigos."
     end
     if _ServerFinderState.hasAny(text, {"servidor aleatório", "servidor aleatorio", "qualquer servidor"}) then
         _ServerFinderState.ChatState.lastIntent = "search"
@@ -2920,7 +2923,7 @@ _ServerFinderState.create("TextLabel", {
     Position = UDim2.fromOffset(14, 34),
     BackgroundTransparency = 1,
     Text = "O botão BR confirma o país antes do teleporte e não entra em servidores com amigos.\n"
-        .. "Se o Roblox bloquear a confirmação exata, a busca é cancelada para evitar teleporte para outro país.",
+        .. "Se a confirmação falhar, o matchmaking não garante Brasil nem exclui amigos.",
     TextColor3 = Color3.fromRGB(210, 215, 225),
     TextSize = 11,
     TextWrapped = true,
@@ -3730,7 +3733,7 @@ _ServerFinderState.runSearch = function(mode, label)
                     break
                 end
 
-                local server, selectionError = _ServerFinderState.chooseServer(mode)
+                local server, selectionError, matchmakingFallback = _ServerFinderState.chooseServer(mode)
                 if server and mode == "brazil" and server.regionUnverified then
                     selectionError = "A regiao do servidor nao foi confirmada. Nenhum teleporte foi feito."
                     server = nil
@@ -3758,6 +3761,37 @@ _ServerFinderState.runSearch = function(mode, label)
                         break
                     end
                 else
+                    if mode == "brazil" and matchmakingFallback then
+                        if _ServerFinderState.askTeleportConfirmation(nil, label, "brazil-fallback") then
+                            _ServerFinderState.showLoading("Pedindo ao Roblox uma instância por localização e latência...")
+                            local requested, requestError = pcall(function()
+                                _ServerFinderState.TeleportService:Teleport(_ServerFinderState.PLACE_ID, _ServerFinderState.Player)
+                            end)
+                            if requested then
+                                connected = true
+                                _ServerFinderState.setStatus(
+                                    _ServerFinderState.SearchStatus,
+                                    "Matchmaking iniciado. A região BR e a exclusão de amigos não são garantidas.",
+                                    Color3.fromRGB(165, 215, 240)
+                                )
+                            else
+                                failureMessage = "Não consegui iniciar o matchmaking do Roblox: " .. tostring(requestError)
+                                _ServerFinderState.setStatus(
+                                    _ServerFinderState.SearchStatus,
+                                    failureMessage,
+                                    Color3.fromRGB(240, 130, 130)
+                                )
+                            end
+                        else
+                            cancelled = true
+                            _ServerFinderState.setStatus(
+                                _ServerFinderState.SearchStatus,
+                                "Matchmaking cancelado.",
+                                Color3.fromRGB(225, 210, 110)
+                            )
+                        end
+                        break
+                    end
                     failureMessage = selectionError
                     _ServerFinderState.setStatus(
                         _ServerFinderState.SearchStatus,
